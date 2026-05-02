@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "8cVMa2UY6N2_sHMAgmi00"
+uri = "file://tabnotes-extension.zip"
+type = "unspecified"
+title = "TabNotes — Extensión Chrome (ZIP)"
