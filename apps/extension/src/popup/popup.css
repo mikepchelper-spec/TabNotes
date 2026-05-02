@@ -6,8 +6,8 @@
   --color-text: #1a1916;
   --color-text-muted: #6b6560;
   --color-text-subtle: #a09890;
-  --color-accent: #ff6200;
-  --color-accent-subtle: #fff3ec;
+  --color-accent: #2b5be8;
+  --color-accent-subtle: #edf1ff;
   --color-success: #16a34a;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
@@ -15,7 +15,7 @@
 [data-theme="dark"] {
   --color-bg: #0f0f0e; --color-bg-subtle: #1c1c1a; --color-bg-muted: #242420;
   --color-border: #2a2926; --color-text: #f0ede8; --color-text-muted: #9a958e;
-  --color-text-subtle: #6a6560; --color-accent: #ff6200; --color-accent-subtle: #1e1000;
+  --color-text-subtle: #6a6560; --color-accent: #5c83f5; --color-accent-subtle: #0e1740;
   --color-success: #22c55e;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,7 +28,7 @@ body { font-family: var(--font-sans); background: var(--color-bg); color: var(--
 
 .popup-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 13px; border-bottom: 1px solid var(--color-border); }
 .popup-logo { display: flex; align-items: center; gap: 7px; }
-.logo-icon { width: 24px; height: 24px; background: linear-gradient(135deg, #ff6200, #ff3d00); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px rgba(255,98,0,0.4); }
+.logo-icon { width: 24px; height: 24px; background: linear-gradient(135deg, #2b5be8, #1a3fc0); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px rgba(43,91,232,0.4); }
 .logo-text { font-size: 14px; font-weight: 700; color: var(--color-text); letter-spacing: -0.3px; }
 .icon-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-bg-subtle); color: var(--color-text-muted); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; font-family: var(--font-sans); transition: all 100ms ease; }
 .icon-btn:hover { background: var(--color-bg-muted); color: var(--color-text); }
