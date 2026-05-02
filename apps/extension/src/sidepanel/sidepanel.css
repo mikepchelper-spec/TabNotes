@@ -1281,3 +1281,87 @@ body {
 /* ─── Scrollbar ──────────────────────────────────────────────── */
 .sp-notes-list::-webkit-scrollbar { width: 3px; }
 .sp-notes-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+/* ─── Focus mode ─────────────────────────────────────────────── */
+.sp-root.focus-mode .sp-header,
+.sp-root.focus-mode .sp-scope-bar,
+.sp-root.focus-mode .sp-context-strip,
+.sp-root.focus-mode .sp-note-picker,
+.sp-root.focus-mode .sp-tags-row,
+.sp-root.focus-mode .sp-bottom-nav {
+  display: none;
+}
+.sp-root.focus-mode .sp-note-meta {
+  background: var(--bg);
+  border-top: none;
+  padding: 4px 10px;
+  min-height: 0;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.sp-root.focus-mode .sp-note-title-input {
+  padding-top: 18px;
+}
+
+/* ─── Templates dropdown ─────────────────────────────────────── */
+.sp-templates-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 150px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+  overflow: hidden;
+  animation: fadeIn 150ms var(--ease);
+}
+.sp-template-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms;
+}
+.sp-template-item:hover { background: var(--bg-subtle); color: var(--text); }
+
+/* ─── Color picker ───────────────────────────────────────────── */
+.sp-color-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  gap: 5px;
+  padding: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+  animation: fadeIn 150ms var(--ease);
+}
+.sp-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 120ms var(--ease), box-shadow 120ms;
+  padding: 0;
+  flex-shrink: 0;
+}
+.sp-color-swatch:hover { transform: scale(1.2); }
+.sp-color-swatch.active { box-shadow: 0 0 0 2px var(--accent); }
+
+/* ─── Meta bar wrapping (many buttons) ──────────────────────── */
+.sp-note-meta {
+  flex-wrap: wrap;
+  gap: 2px;
+  row-gap: 3px;
+}
