@@ -13,7 +13,7 @@ const cr: any = (typeof globalThis !== 'undefined' && (globalThis as Record<stri
   ? (globalThis as Record<string, unknown>).chrome
   : null;
 
-type View = 'note' | 'all' | 'settings';
+type View = 'note' | 'all' | 'settings' | 'graph';
 
 const SCOPE_OPTIONS: { value: NoteScope; label: string; icon: string; desc: string }[] = [
   { value: 'url',       label: 'URL',       icon: '🔗', desc: 'Exact page URL' },
@@ -76,6 +76,7 @@ function parseMarkdown(text: string): string {
     .replace(/^- \[ \] (.+)$/gim, '<li class="tn-task"><input type="checkbox" data-task="true" /><span>$1</span></li>')
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+    .replace(/\[\[(.+?)\]\]/g, '<span class="tn-wikilink" data-wiki="$1">[[<u>$1</u>]]</span>')
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/\n\n/g, '</p><p>')
     .replace(/^(?!<[hul]|<p)(.+)$/gm, '<p>$1</p>')
@@ -85,6 +86,94 @@ function parseMarkdown(text: string): string {
 function autoTitleFromContent(c: string): string {
   const first = c.trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^- \[.?\] /, '').trim();
   return first.slice(0, 60);
+}
+
+// ── Crypto utilities ──────────────────────────────────────────
+async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
+  );
+}
+async function encryptText(text: string, password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(password, salt);
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text));
+  const buf = new Uint8Array(28 + cipher.byteLength);
+  buf.set(salt, 0); buf.set(iv, 16); buf.set(new Uint8Array(cipher), 28);
+  return btoa(String.fromCharCode(...buf));
+}
+async function decryptText(data: string, password: string): Promise<string> {
+  const buf  = Uint8Array.from(atob(data), c => c.charCodeAt(0));
+  const key  = await deriveKey(password, buf.slice(0, 16));
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(16, 28) }, key, buf.slice(28));
+  return new TextDecoder().decode(plain);
+}
+
+// ── Note graph component ──────────────────────────────────────
+function NoteGraph({ notes, activeId, onSelect }: {
+  notes: Note[]; activeId: string | null; onSelect: (n: Note) => void;
+}) {
+  const W = 310, H = 280, cx = W / 2, cy = H / 2;
+  const active = notes.find((n) => n.id === activeId);
+  const others = notes.filter((n) => n.id !== activeId).slice(0, 9);
+
+  const wikiLinks = new Set<string>();
+  if (active) {
+    for (const m of [...active.content.matchAll(/\[\[(.+?)\]\]/g)]) wikiLinks.add(m[1].toLowerCase());
+  }
+
+  const nodes = others.map((n, i) => {
+    const angle = (i / Math.max(others.length, 1)) * 2 * Math.PI - Math.PI / 2;
+    const r = 105;
+    const label = (n.title || n.content.trim().split('\n')[0]).slice(0, 10);
+    const linked = wikiLinks.has((n.title || '').toLowerCase());
+    const shared = active ? active.tags.filter((t) => n.tags.includes(t)).length : 0;
+    return { note: n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), label, linked, shared };
+  });
+
+  return (
+    <svg width={W} height={H} style={{ display: 'block', margin: 'auto', overflow: 'visible' }}>
+      {nodes.filter((n) => n.linked || n.shared > 0).map((n, i) => (
+        <line key={i} x1={cx} y1={cy} x2={n.x} y2={n.y}
+          stroke={n.linked ? '#2b5be8' : '#c8d0e0'}
+          strokeWidth={n.linked ? 1.8 : 1}
+          strokeDasharray={n.linked ? 'none' : '5 3'}
+          opacity={.65}
+        />
+      ))}
+      {nodes.map((n) => (
+        <g key={n.note.id} style={{ cursor: 'pointer' }} onClick={() => onSelect(n.note)}>
+          <circle cx={n.x} cy={n.y} r={20}
+            fill={n.linked ? '#edf1ff' : 'var(--bg-card, #fff)'}
+            stroke={n.linked ? '#2b5be8' : n.shared > 0 ? '#5c83f5' : '#c8d0e0'}
+            strokeWidth={n.linked || n.shared > 0 ? 2 : 1}
+          />
+          <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize={8.5}
+            fill="var(--text, #222)" fontFamily="system-ui,sans-serif">
+            {n.label}
+          </text>
+        </g>
+      ))}
+      {active && (
+        <g>
+          <circle cx={cx} cy={cy} r={26} fill="#2b5be8" />
+          <text x={cx} y={cy + 4} textAnchor="middle" fontSize={9} fill="#fff"
+            fontFamily="system-ui,sans-serif" fontWeight="600">
+            {(active.title || active.content.split('\n')[0]).slice(0, 13)}
+          </text>
+        </g>
+      )}
+      {!active && (
+        <text x={cx} y={cy + 5} textAnchor="middle" fontSize={11} fill="#aaa" fontFamily="system-ui">
+          No note selected
+        </text>
+      )}
+    </svg>
+  );
 }
 
 function pillLabel(n: Note, idx: number): string {
@@ -158,6 +247,14 @@ export default function SidePanelApp() {
 
   // Copy to clipboard feedback
   const [copied, setCopied] = useState(false);
+
+  // ── Typewriter mode / Wiki autocomplete / Encryption ─────────
+  const [typewriterMode, setTypewriterMode] = useState(false);
+  const [wikiQuery, setWikiQuery] = useState<string | null>(null);
+  const [wikiAnchor, setWikiAnchor] = useState<{ start: number; end: number } | null>(null);
+  const [showEncPrompt, setShowEncPrompt] = useState<'lock' | 'unlock' | null>(null);
+  const [encPassword, setEncPassword] = useState('');
+  const [encError, setEncError] = useState('');
 
   // ── History / Reminders / Reference panel ─────────────────────
   const [showHistory, setShowHistory] = useState(false);
@@ -260,6 +357,15 @@ export default function SidePanelApp() {
     return () => document.removeEventListener('mousedown', handle);
   }, [colorPickerNoteId]);
 
+  // ── Typewriter mode: keep cursor line vertically centered ─────
+  useEffect(() => {
+    if (!typewriterMode || !textareaRef.current) return;
+    const el = textareaRef.current;
+    const lh = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    const line = el.value.substring(0, el.selectionStart ?? 0).split('\n').length;
+    el.scrollTop = Math.max(0, (line - 1) * lh - el.clientHeight / 2 + lh);
+  }, [content, typewriterMode]);
+
   // ── CLIP_TEXT listener (Web Clipper content script) ──────────
   useEffect(() => {
     if (!cr?.runtime?.onMessage) return;
@@ -322,8 +428,13 @@ export default function SidePanelApp() {
       } else if (e.key === 'f' && e.shiftKey) {
         e.preventDefault();
         setFocusMode((p) => !p);
+      } else if (e.key === 't' && e.shiftKey) {
+        e.preventDefault();
+        setTypewriterMode((p) => !p);
       } else if (e.key === 'Escape' && focusMode) {
         setFocusMode(false);
+      } else if (e.key === 'Escape') {
+        setWikiQuery(null); setWikiAnchor(null);
       }
     };
     document.addEventListener('keydown', handle);
@@ -556,6 +667,88 @@ export default function SidePanelApp() {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => saveNote(c, t, tg), 600);
   }, [saveNote]);
+
+  // ── Screenshot capture ───────────────────────────────────────
+  const captureScreenshot = () => {
+    cr?.runtime?.sendMessage({ type: 'CAPTURE_TAB' }, (res: { dataUrl?: string; error?: string }) => {
+      if (!res?.dataUrl) return;
+      const ts = new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
+      const insert = `\n\n![Screenshot ${ts}](${res.dataUrl})\n`;
+      const next = content + insert;
+      setContent(next); schedule(next, title, tags);
+    });
+  };
+
+  // ── Export to PDF ────────────────────────────────────────────
+  const exportToPDF = () => {
+    const html = `<!DOCTYPE html><html><head>
+<meta charset="utf-8"><title>${title || 'TabNote'}</title>
+<style>
+  body{font-family:Georgia,serif;max-width:700px;margin:40px auto;padding:0 20px;color:#1a1a1a;line-height:1.7}
+  h1,h2,h3{font-family:system-ui,sans-serif}
+  h1{border-bottom:2px solid #e5e7eb;padding-bottom:8px}
+  code{background:#f5f5f5;padding:2px 5px;border-radius:3px;font-size:.88em}
+  blockquote{border-left:3px solid #9ca3af;padding-left:16px;color:#6b7280;margin:0 0 1em}
+  a{color:#2b5be8} ul{padding-left:20px} li{margin:3px 0}
+  .meta{font-size:.8em;color:#9ca3af;padding-bottom:10px;margin-bottom:20px;border-bottom:1px solid #f0f0f0}
+  @media print{body{margin:0}}
+</style></head><body>
+${title ? `<h1>${title}</h1>` : ''}
+<div class="meta">${new Date().toLocaleString()}${currentDomain ? ` · ${currentDomain}` : ''}${tags ? ` · Tags: ${tags}` : ''}</div>
+${parseMarkdown(content)}
+<script>window.addEventListener('load',()=>window.print());<\/script>
+</body></html>`;
+    if (cr?.tabs?.create) {
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      cr.tabs.create({ url });
+    } else {
+      const w = window.open('', '_blank'); w?.document.write(html); w?.document.close();
+    }
+  };
+
+  // ── Note encryption ──────────────────────────────────────────
+  const handleLockNote = async () => {
+    if (!activeNoteId || !encPassword) return;
+    try {
+      const encrypted = await encryptText(content, encPassword);
+      await noteSvc.current.updateNote(activeNoteId, {
+        content: '🔐 This note is encrypted.', encrypted: true, encryptedData: encrypted,
+      });
+      setContent('🔐 This note is encrypted.');
+      const notes = await noteSvc.current.getNotesByScope(scopeRef.current, currentUrlRef.current, wsIdRef.current);
+      setContextNotes(notes); await refreshAllNotes();
+      setShowEncPrompt(null); setEncPassword(''); setEncError('');
+    } catch { setEncError('Encryption failed.'); }
+  };
+
+  const handleUnlockNote = async () => {
+    const note = allNotes.find((n) => n.id === activeNoteId);
+    if (!activeNoteId || !encPassword || !note?.encryptedData) return;
+    try {
+      const decrypted = await decryptText(note.encryptedData, encPassword);
+      await noteSvc.current.updateNote(activeNoteId, {
+        content: decrypted, encrypted: false, encryptedData: undefined,
+      });
+      setContent(decrypted);
+      const notes = await noteSvc.current.getNotesByScope(scopeRef.current, currentUrlRef.current, wsIdRef.current);
+      setContextNotes(notes); await refreshAllNotes();
+      setShowEncPrompt(null); setEncPassword(''); setEncError('');
+    } catch { setEncError('Wrong password.'); }
+  };
+
+  // ── Wiki link autocomplete ───────────────────────────────────
+  const insertWikiLink = (noteTitle: string) => {
+    if (!wikiAnchor || !textareaRef.current) return;
+    const before = content.slice(0, wikiAnchor.start) + `[[${noteTitle}]]`;
+    const next = before + content.slice(wikiAnchor.end);
+    setContent(next); schedule(next, title, tags);
+    setWikiQuery(null); setWikiAnchor(null);
+    setTimeout(() => {
+      if (!textareaRef.current) return;
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(before.length, before.length);
+    }, 0);
+  };
 
   // ── Bulk delete selected notes ────────────────────────────────
   const bulkDeleteNotes = async () => {
@@ -943,6 +1136,11 @@ export default function SidePanelApp() {
         </div>
         <div className="sp-header-actions">
           {tabLoading && <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />}
+          <button
+            className={`sp-icon-btn${view === 'graph' ? ' active' : ''}`}
+            onClick={() => setView(view === 'graph' ? 'note' : 'graph')}
+            title="Note graph view"
+          >⬡</button>
           <button className="sp-icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
             {theme === 'dark' ? '☀' : '☽'}
           </button>
@@ -1205,11 +1403,22 @@ export default function SidePanelApp() {
                     dangerouslySetInnerHTML={{ __html: content ? parseMarkdown(content) : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>' }}
                     onClick={(e) => {
                       const t = e.target as HTMLElement;
+                      // Wiki link navigation
+                      const wl = t.closest('.tn-wikilink') as HTMLElement | null;
+                      if (wl) {
+                        const wiki = (wl.dataset.wiki ?? '').toLowerCase();
+                        const target = allNotes.find((n) =>
+                          (n.title ?? '').toLowerCase() === wiki ||
+                          n.content.trim().split('\n')[0].toLowerCase() === wiki
+                        );
+                        if (target) { selectNote(target); setView('note'); }
+                        return;
+                      }
+                      // Checkbox toggle
                       if (t.tagName !== 'INPUT' || t.getAttribute('data-task') !== 'true') return;
                       const span = t.nextElementSibling;
                       const taskText = span?.textContent?.trim() ?? '';
                       const checked = (t as HTMLInputElement).checked;
-                      // Toggle in raw markdown
                       const from = checked ? `- [ ] ${taskText}` : `- [x] ${taskText}`;
                       const to   = checked ? `- [x] ${taskText}` : `- [ ] ${taskText}`;
                       const next = content.replace(from, to);
@@ -1218,16 +1427,44 @@ export default function SidePanelApp() {
                     }}
                   />
                 ) : (
-                  <textarea
-                    ref={textareaRef}
-                    className={`sp-note-textarea${markdownEnabled ? ' mono' : ''}`}
-                    autoFocus={!tabLoading}
-                    value={content}
-                    onChange={(e) => { setContent(e.target.value); schedule(e.target.value, title, tags); }}
-                    placeholder={`Note for this ${scope}…`}
-                    disabled={tabLoading}
-                    style={{ fontSize: fontSize, ...(activeNoteColor ? { background: activeNoteColor } : {}) }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <textarea
+                      ref={textareaRef}
+                      className={`sp-note-textarea${markdownEnabled ? ' mono' : ''}${typewriterMode ? ' tn-typewriter' : ''}`}
+                      autoFocus={!tabLoading}
+                      value={content}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setContent(val); schedule(val, title, tags);
+                        const cursor = e.target.selectionStart;
+                        const before = val.slice(0, cursor);
+                        const m = before.match(/\[\[([^\]]*?)$/);
+                        if (m) { setWikiQuery(m[1]); setWikiAnchor({ start: before.length - m[0].length, end: cursor }); }
+                        else { setWikiQuery(null); setWikiAnchor(null); }
+                      }}
+                      placeholder={`Note for this ${scope}…`}
+                      disabled={tabLoading}
+                      style={{ fontSize: fontSize, ...(activeNoteColor ? { background: activeNoteColor } : {}) }}
+                    />
+                    {wikiQuery !== null && (
+                      <div className="tn-wiki-suggest">
+                        {allNotes
+                          .filter((n) => n.id !== activeNoteId && (n.title || n.content.split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase()))
+                          .slice(0, 6)
+                          .map((n) => {
+                            const label = n.title || n.content.split('\n')[0];
+                            return (
+                              <button key={n.id} className="tn-wiki-item" onMouseDown={(e) => { e.preventDefault(); insertWikiLink(label); }}>
+                                {label.slice(0, 45)}
+                              </button>
+                            );
+                          })}
+                        {allNotes.filter((n) => n.id !== activeNoteId && (n.title || n.content.split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase())).length === 0 && (
+                          <span className="tn-wiki-empty">No matching notes</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <div className="sp-tags-row">
@@ -1328,6 +1565,32 @@ export default function SidePanelApp() {
                   {/* Export current note */}
                   {(content || title) && (
                     <button className="sp-meta-toggle" onClick={exportCurrentNote} title="Export note as .md">↓md</button>
+                  )}
+
+                  {/* Export to PDF */}
+                  {(content || title) && (
+                    <button className="sp-meta-toggle" onClick={exportToPDF} title="Export to PDF / Print">🖨</button>
+                  )}
+
+                  {/* Screenshot capture */}
+                  {markdownEnabled && (
+                    <button className="sp-meta-toggle" onClick={captureScreenshot} title="Capture screenshot of current tab">📸</button>
+                  )}
+
+                  {/* Typewriter mode */}
+                  <button
+                    className={`sp-meta-toggle${typewriterMode ? ' active' : ''}`}
+                    onClick={() => setTypewriterMode(!typewriterMode)}
+                    title={typewriterMode ? 'Exit typewriter mode (Ctrl+Shift+T)' : 'Typewriter mode — cursor stays centered (Ctrl+Shift+T)'}
+                  >✍</button>
+
+                  {/* Encrypt note */}
+                  {activeNoteId && (
+                    <button
+                      className={`sp-meta-toggle${activeNote?.encrypted ? ' active' : ''}`}
+                      onClick={() => { setShowEncPrompt(activeNote?.encrypted ? 'unlock' : 'lock'); setEncPassword(''); setEncError(''); }}
+                      title={activeNote?.encrypted ? 'Decrypt note' : 'Encrypt note with password'}
+                    >{activeNote?.encrypted ? '🔒' : '🔓'}</button>
                   )}
 
                   {/* Focus mode */}
@@ -1739,6 +2002,37 @@ export default function SidePanelApp() {
           </div>
         )}
 
+        {/* ── Graph view ── */}
+        {view === 'graph' && (
+          <div className="sp-graph-view">
+            <div className="sp-graph-header">
+              <span className="sp-graph-title">⬡ Note Graph</span>
+              <button className="sp-icon-btn" style={{ fontSize: 11 }} onClick={() => setView('note')}>✕</button>
+            </div>
+            <div className="sp-graph-legend">
+              <span className="sp-graph-legend-item"><span style={{ color: '#2b5be8' }}>─</span> Wiki link</span>
+              <span className="sp-graph-legend-item"><span style={{ color: '#c8d0e0' }}>╌</span> Shared tag</span>
+              <span className="sp-graph-legend-sep" />
+              <span className="sp-graph-legend-item" style={{ color: 'var(--text-subtle)', fontSize: 10 }}>Click a node to open note</span>
+            </div>
+            <NoteGraph
+              notes={allNotes}
+              activeId={activeNoteId}
+              onSelect={(n) => { selectNote(n); setView('note'); }}
+            />
+            {allNotes.length === 0 && (
+              <p style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: 13, marginTop: 24 }}>
+                No notes yet. Create some notes to see the graph.
+              </p>
+            )}
+            <div className="sp-graph-stats">
+              <span>{allNotes.length} note{allNotes.length !== 1 ? 's' : ''}</span>
+              <span>·</span>
+              <span>{allNotes.filter((n) => /\[\[/.test(n.content)).length} with wiki links</span>
+            </div>
+          </div>
+        )}
+
         {/* Settings */}
         {view === 'settings' && (
           <div className="sp-settings-view">
@@ -1894,6 +2188,45 @@ export default function SidePanelApp() {
           </div>
         )}
       </div>
+
+      {/* ── Encryption prompt overlay ── */}
+      {showEncPrompt && (
+        <div className="tn-enc-overlay">
+          <div className="tn-enc-dialog">
+            <div className="tn-enc-title">
+              {showEncPrompt === 'lock' ? '🔒 Encrypt note' : '🔑 Decrypt note'}
+            </div>
+            <p className="tn-enc-desc">
+              {showEncPrompt === 'lock'
+                ? 'Enter a password to encrypt this note with AES-256. You\'ll need the same password to read it again.'
+                : 'Enter your password to decrypt and restore this note.'}
+            </p>
+            <input
+              className="tn-enc-input"
+              type="password"
+              placeholder="Password…"
+              value={encPassword}
+              autoFocus
+              onChange={(e) => { setEncPassword(e.target.value); setEncError(''); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') showEncPrompt === 'lock' ? handleLockNote() : handleUnlockNote();
+                if (e.key === 'Escape') { setShowEncPrompt(null); setEncPassword(''); setEncError(''); }
+              }}
+            />
+            {encError && <p className="tn-enc-error">{encError}</p>}
+            <div className="tn-enc-actions">
+              <button className="tn-enc-cancel" onClick={() => { setShowEncPrompt(null); setEncPassword(''); setEncError(''); }}>Cancel</button>
+              <button
+                className="tn-enc-confirm"
+                onClick={showEncPrompt === 'lock' ? handleLockNote : handleUnlockNote}
+                disabled={!encPassword}
+              >
+                {showEncPrompt === 'lock' ? 'Encrypt' : 'Decrypt'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom nav ── */}
       <div className="sp-bottom-nav">
