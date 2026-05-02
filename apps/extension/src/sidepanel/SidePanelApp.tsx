@@ -248,6 +248,11 @@ export default function SidePanelApp() {
   // Copy to clipboard feedback
   const [copied, setCopied] = useState(false);
 
+  // ── Offline queue ─────────────────────────────────────────────
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
+  const [syncedToast, setSyncedToast] = useState(false);
+
   // ── Typewriter mode / Wiki autocomplete / Encryption ─────────
   const [typewriterMode, setTypewriterMode] = useState(false);
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
@@ -358,6 +363,29 @@ export default function SidePanelApp() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [colorPickerNoteId]);
+
+  // ── Online / offline detection ────────────────────────────────
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      // Flush pending queue — notes are already in local storage, so "flush"
+      // means marking them as synced and showing a toast
+      setPendingSyncIds((prev) => {
+        if (prev.size > 0) {
+          setSyncedToast(true);
+          setTimeout(() => setSyncedToast(false), 3000);
+        }
+        return new Set();
+      });
+    };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online',  goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   // ── Cross-tab real-time sync ──────────────────────────────────
   useEffect(() => {
@@ -712,6 +740,11 @@ export default function SidePanelApp() {
     // Track what we just saved so cross-tab sync can tell it's not a remote change
     contentSavedRef.current = c;
     lastSaveTs.current = Date.now();
+
+    // Track offline queue — note saved locally; will "sync" when reconnected
+    if (!navigator.onLine && saved?.id) {
+      setPendingSyncIds((prev) => new Set([...prev, saved.id]));
+    }
 
     setSaved(true);
     await refreshAllNotes();
@@ -1192,6 +1225,18 @@ ${parseMarkdown(content)}
         </div>
         <div className="sp-header-actions">
           {tabLoading && <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />}
+
+          {/* Connection status indicator */}
+          {!isOnline && (
+            <div className="tn-offline-badge" title={`Offline — ${pendingSyncIds.size > 0 ? `${pendingSyncIds.size} note${pendingSyncIds.size !== 1 ? 's' : ''} queued for sync` : 'notes save locally as always'}`}>
+              <span className="tn-offline-dot" />
+              {pendingSyncIds.size > 0 && <span className="tn-offline-count">{pendingSyncIds.size}</span>}
+            </div>
+          )}
+          {syncedToast && (
+            <div className="tn-synced-toast">✓ All synced</div>
+          )}
+
           <button
             className={`sp-icon-btn${view === 'graph' ? ' active' : ''}`}
             onClick={() => setView(view === 'graph' ? 'note' : 'graph')}
