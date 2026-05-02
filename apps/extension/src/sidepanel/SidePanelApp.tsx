@@ -190,10 +190,12 @@ export default function SidePanelApp() {
   const scopeRef = useRef<NoteScope>('domain');
   const currentUrlRef = useRef('');
   const wsIdRef = useRef<string | null>(null);
+  const activeFolderRef = useRef<string | null>(null);
 
   useEffect(() => { activeNoteIdRef.current = activeNoteId; }, [activeNoteId]);
   useEffect(() => { scopeRef.current = scope; }, [scope]);
   useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
+  useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
   useEffect(() => { wsIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
   // ── Load extra prefs from localStorage ───────────────────────
@@ -454,10 +456,12 @@ export default function SidePanelApp() {
   const addNoteToContext = async () => {
     const url = currentUrlRef.current;
     if (!url || url.startsWith('chrome://')) return;
+    const folder = activeFolderRef.current ?? undefined;
     const created = await noteSvc.current.createNote({
       scope: scopeRef.current,
       url,
       workspaceId: wsIdRef.current,
+      folder,
     });
     const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
     setContextNotes(notes);
