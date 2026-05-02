@@ -300,6 +300,8 @@ export default function SidePanelApp() {
   const noteSvc = useRef(new NotesService(adapter.current));
   const wsSvc = useRef(new WorkspacesService(adapter.current));
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const contentSavedRef = useRef('');   // last content persisted — dirty-check for cross-tab sync
+  const lastSaveTs = useRef(0);         // timestamp of our most recent save — skip our own writes
 
   // Refs for stable autosave (no stale closures)
   const activeNoteIdRef = useRef<string | null>(null);
@@ -356,6 +358,56 @@ export default function SidePanelApp() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [colorPickerNoteId]);
+
+  // ── Cross-tab real-time sync ──────────────────────────────────
+  useEffect(() => {
+    if (!cr?.storage?.onChanged) return;
+    let t: ReturnType<typeof setTimeout>;
+
+    const handler = (
+      changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
+      area: string,
+    ) => {
+      if (area !== 'local' || !changes.notes) return;
+      // Skip if this change was triggered by our own save (within 1.2 s window)
+      if (Date.now() - lastSaveTs.current < 1200) return;
+
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        // Refresh note lists
+        const allUpdated = await noteSvc.current.getAllNotes();
+        setAllNotes(allUpdated);
+        const ctxUpdated = await noteSvc.current.getNotesByScope(
+          scopeRef.current, currentUrlRef.current, wsIdRef.current,
+        );
+        setContextNotes(ctxUpdated);
+
+        // Sync active note editor only when the user hasn't typed new content
+        const id = activeNoteIdRef.current;
+        if (id) {
+          const remote = ctxUpdated.find((n) => n.id === id)
+            ?? allUpdated.find((n) => n.id === id);
+          if (remote && remote.content !== contentSavedRef.current) {
+            // Remote has a newer version AND we haven't dirtied the editor
+            setContent((localContent) => {
+              if (localContent === contentSavedRef.current) {
+                // Not dirty — adopt the remote version
+                contentSavedRef.current = remote.content;
+                setTitle(remote.title ?? '');
+                setTags(remote.tags.join(', '));
+                return remote.content;
+              }
+              return localContent; // dirty — preserve local edits
+            });
+          }
+        }
+      }, 250);
+    };
+
+    cr.storage.onChanged.addListener(handler);
+    return () => { cr.storage.onChanged.removeListener(handler); clearTimeout(t); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Typewriter mode: keep cursor line vertically centered ─────
   useEffect(() => {
@@ -656,6 +708,10 @@ export default function SidePanelApp() {
       const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
       setContextNotes(notes);
     }
+
+    // Track what we just saved so cross-tab sync can tell it's not a remote change
+    contentSavedRef.current = c;
+    lastSaveTs.current = Date.now();
 
     setSaved(true);
     await refreshAllNotes();
