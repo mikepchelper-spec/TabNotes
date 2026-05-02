@@ -1167,6 +1167,15 @@ export default function SidePanelApp() {
                 View on GitHub →
               </a>
             </div>
+
+            <a
+              href="https://www.paypal.com/paypalme/atlaspcsupport"
+              target="_blank"
+              rel="noopener"
+              className="sp-coffee-btn"
+            >
+              ☕ Buy me a coffee
+            </a>
           </div>
         )}
       </div>
