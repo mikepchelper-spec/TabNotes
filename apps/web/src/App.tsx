@@ -6,6 +6,7 @@ import HomePage from './pages/Home';
 import NotesPage from './pages/Notes';
 import WorkspacesPage from './pages/Workspaces';
 import SettingsPage from './pages/Settings';
+import PrivacyPage from './pages/Privacy';
 
 export default function App() {
   const { theme } = useThemeStore();
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="notes" element={<NotesPage />} />
         <Route path="workspaces" element={<WorkspacesPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="privacy" element={<PrivacyPage />} />
       </Route>
     </Routes>
   );
