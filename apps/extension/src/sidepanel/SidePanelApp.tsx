@@ -248,6 +248,12 @@ export default function SidePanelApp() {
   // Copy to clipboard feedback
   const [copied, setCopied] = useState(false);
 
+  // ── Command palette ───────────────────────────────────────────
+  const [showCmdPalette, setShowCmdPalette] = useState(false);
+  const [cmdQuery, setCmdQuery]             = useState('');
+  const [cmdSelIdx, setCmdSelIdx]           = useState(0);
+  const cmdInputRef = useRef<HTMLInputElement>(null);
+
   // ── Offline queue ─────────────────────────────────────────────
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
@@ -505,6 +511,10 @@ export default function SidePanelApp() {
       } else if (e.key === 'd') {
         e.preventDefault();
         insertDatetime();
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        setCmdQuery(''); setCmdSelIdx(0); setShowCmdPalette(true);
+        setTimeout(() => cmdInputRef.current?.focus(), 30);
       } else if (e.key === 'f' && e.shiftKey) {
         e.preventDefault();
         setFocusMode((p) => !p);
@@ -1123,6 +1133,57 @@ ${parseMarkdown(content)}
       if (importInputRef.current) importInputRef.current.value = '';
     }
   };
+
+  // ── Command palette items ─────────────────────────────────────
+  type PaletteItem = { label: string; sublabel?: string; icon: string; shortcut?: string; run: () => void };
+  const paletteItems: PaletteItem[] = React.useMemo(() => {
+    const q = cmdQuery.toLowerCase().trim();
+    const items: PaletteItem[] = [];
+
+    // Notes — recent when no query, fuzzy-filtered when typing
+    const notePool = q
+      ? allNotes.filter((n) => `${n.title ?? ''} ${n.content}`.toLowerCase().includes(q)).slice(0, 8)
+      : [...allNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
+    notePool.forEach((n) => items.push({
+      label: n.title || n.content.split('\n')[0] || 'Untitled',
+      sublabel: n.content.replace(/\n+/g, ' ').slice(0, 72).trim(),
+      icon: n.encrypted ? '🔒' : '📝',
+      run: () => { selectNote(n); setView('note'); },
+    }));
+
+    // Actions
+    const actions: PaletteItem[] = [
+      { label: 'New note',            icon: '✎',  run: () => { addNoteToContext(); setView('note'); } },
+      { label: 'All Notes',           icon: '☰',  run: () => setView('all') },
+      { label: 'Note Graph',          icon: '⬡',  run: () => setView('graph') },
+      { label: 'Settings',            icon: '⚙',  run: () => setView('settings') },
+      { label: 'Toggle Markdown',     icon: '◈',  run: () => setMdState((p) => !p) },
+      { label: 'Toggle Focus mode',   icon: '⊡',  shortcut: 'Ctrl+Shift+F', run: () => setFocusMode((p) => !p) },
+      { label: 'Toggle Typewriter',   icon: '✍',  shortcut: 'Ctrl+Shift+T', run: () => setTypewriterMode((p) => !p) },
+      { label: 'Capture screenshot',  icon: '📸', run: () => captureScreenshot() },
+      { label: 'Export to PDF',       icon: '🖨',  run: () => exportToPDF() },
+      { label: 'Scope: URL',          icon: '🔗', run: () => handleScopeChange('url') },
+      { label: 'Scope: Domain',       icon: '🌐', run: () => handleScopeChange('domain') },
+      { label: 'Scope: Workspace',    icon: '⊞',  run: () => handleScopeChange('workspace') },
+      { label: 'Scope: Global',       icon: '🌍', run: () => handleScopeChange('global') },
+      ...workspaces.map((ws) => ({
+        label: `Switch to workspace: ${ws.name}`,
+        icon: '⊞',
+        run: async () => {
+          setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id;
+          await loadContextNotes(currentUrlRef.current, scopeRef.current, ws.id);
+        },
+      })),
+    ];
+    const filteredActions = q ? actions.filter((a) => a.label.toLowerCase().includes(q)) : actions;
+    filteredActions.forEach((a) => items.push(a));
+
+    return items;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cmdQuery, allNotes, workspaces]);
+
+  const paletteItemsRef = React.useRef(paletteItems);
+  paletteItemsRef.current = paletteItems;
 
   // ── Derived ──────────────────────────────────────────────────
   const activeNote = contextNotes.find((n) => n.id === activeNoteId) ?? null;
@@ -2289,6 +2350,73 @@ ${parseMarkdown(content)}
           </div>
         )}
       </div>
+
+      {/* ── Command palette overlay ── */}
+      {showCmdPalette && (
+        <div className="tn-palette-overlay" onMouseDown={() => setShowCmdPalette(false)}>
+          <div className="tn-palette-dialog" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="tn-palette-search-row">
+              <span className="tn-palette-icon-search">⌘</span>
+              <input
+                ref={cmdInputRef}
+                className="tn-palette-input"
+                placeholder="Search notes or type a command…"
+                value={cmdQuery}
+                onChange={(e) => { setCmdQuery(e.target.value); setCmdSelIdx(0); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') { setShowCmdPalette(false); return; }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setCmdSelIdx((i) => Math.min(i + 1, paletteItemsRef.current.length - 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setCmdSelIdx((i) => Math.max(i - 1, 0));
+                  } else if (e.key === 'Enter') {
+                    const item = paletteItemsRef.current[cmdSelIdx];
+                    if (item) { item.run(); setShowCmdPalette(false); }
+                  }
+                }}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <kbd className="tn-palette-esc" onClick={() => setShowCmdPalette(false)}>Esc</kbd>
+            </div>
+
+            <div className="tn-palette-divider" />
+
+            <div className="tn-palette-list">
+              {paletteItems.length === 0 && (
+                <div className="tn-palette-empty">No results for "{cmdQuery}"</div>
+              )}
+              {paletteItems.map((item, idx) => (
+                <button
+                  key={idx}
+                  className={`tn-palette-item${idx === cmdSelIdx ? ' selected' : ''}`}
+                  onMouseEnter={() => setCmdSelIdx(idx)}
+                  onMouseDown={(e) => { e.preventDefault(); item.run(); setShowCmdPalette(false); }}
+                >
+                  <span className="tn-palette-item-icon">{item.icon}</span>
+                  <span className="tn-palette-item-body">
+                    <span className="tn-palette-item-label">{item.label}</span>
+                    {item.sublabel && (
+                      <span className="tn-palette-item-sub">{item.sublabel}</span>
+                    )}
+                  </span>
+                  {item.shortcut && (
+                    <kbd className="tn-palette-shortcut">{item.shortcut}</kbd>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="tn-palette-footer">
+              <span><kbd>↑↓</kbd> navigate</span>
+              <span><kbd>↵</kbd> select</span>
+              <span><kbd>Esc</kbd> close</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Encryption prompt overlay ── */}
       {showEncPrompt && (
