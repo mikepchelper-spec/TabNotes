@@ -70,12 +70,21 @@ function parseMarkdown(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
+    // Checked tasks
+    .replace(/^- \[x\] (.+)$/gim, '<li class="tn-task tn-done"><input type="checkbox" checked data-task="true" /><span>$1</span></li>')
+    // Unchecked tasks
+    .replace(/^- \[ \] (.+)$/gim, '<li class="tn-task"><input type="checkbox" data-task="true" /><span>$1</span></li>')
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/\n\n/g, '</p><p>')
     .replace(/^(?!<[hul]|<p)(.+)$/gm, '<p>$1</p>')
     .replace(/<p><\/p>/g, '');
+}
+
+function autoTitleFromContent(c: string): string {
+  const first = c.trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^- \[.?\] /, '').trim();
+  return first.slice(0, 60);
 }
 
 function pillLabel(n: Note, idx: number): string {
@@ -149,6 +158,16 @@ export default function SidePanelApp() {
 
   // Copy to clipboard feedback
   const [copied, setCopied] = useState(false);
+
+  // ── History / Reminders / Reference panel ─────────────────────
+  const [showHistory, setShowHistory] = useState(false);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const [showReminderPicker, setShowReminderPicker] = useState(false);
+  const reminderRef = useRef<HTMLDivElement>(null);
+  const [reminderInput, setReminderInput] = useState('');
+  const [refNoteId, setRefNoteId] = useState<string | null>(null);
+  const [showRefPanel, setShowRefPanel] = useState(false);
+  const [clipFeedback, setClipFeedback] = useState(false);
 
   // ── Folders ───────────────────────────────────────────────────
   const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = All
@@ -240,6 +259,36 @@ export default function SidePanelApp() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [colorPickerNoteId]);
+
+  // ── CLIP_TEXT listener (Web Clipper content script) ──────────
+  useEffect(() => {
+    if (!cr?.runtime?.onMessage) return;
+    const handler = (msg: { type: string; text: string; sourceUrl: string; sourceTitle: string }) => {
+      if (msg.type !== 'CLIP_TEXT') return;
+      const clip = `\n\n> ${msg.text}\n\n— [${msg.sourceTitle || msg.sourceUrl}](${msg.sourceUrl})`;
+      setContent((prev) => {
+        const next = prev + clip;
+        schedule(next, title, tags);
+        return next;
+      });
+      setClipFeedback(true);
+      setTimeout(() => setClipFeedback(false), 2000);
+    };
+    cr.runtime.onMessage.addListener(handler);
+    return () => cr.runtime.onMessage.removeListener(handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Click outside → close history / reminder popups ──────────
+  useEffect(() => {
+    if (!showHistory && !showReminderPicker) return;
+    const handle = (e: MouseEvent) => {
+      if (showHistory && !historyRef.current?.contains(e.target as Node)) setShowHistory(false);
+      if (showReminderPicker && !reminderRef.current?.contains(e.target as Node)) setShowReminderPicker(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showHistory, showReminderPicker]);
 
   // ── Click outside → close folder menu / move picker ──────────
   useEffect(() => {
@@ -1139,7 +1188,13 @@ export default function SidePanelApp() {
                   className="sp-note-title-input"
                   value={title}
                   onChange={(e) => { setTitle(e.target.value); schedule(content, e.target.value, tags); }}
-                  placeholder="Title (optional)"
+                  onBlur={() => {
+                    if (!title.trim() && content.trim()) {
+                      const auto = autoTitleFromContent(content);
+                      if (auto) { setTitle(auto); schedule(content, auto, tags); }
+                    }
+                  }}
+                  placeholder={content.trim() ? autoTitleFromContent(content) || 'Title…' : 'Title…'}
                   disabled={tabLoading}
                 />
 
@@ -1148,6 +1203,19 @@ export default function SidePanelApp() {
                     className="sp-markdown-preview"
                     style={activeNoteColor ? { background: activeNoteColor } : undefined}
                     dangerouslySetInnerHTML={{ __html: content ? parseMarkdown(content) : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>' }}
+                    onClick={(e) => {
+                      const t = e.target as HTMLElement;
+                      if (t.tagName !== 'INPUT' || t.getAttribute('data-task') !== 'true') return;
+                      const span = t.nextElementSibling;
+                      const taskText = span?.textContent?.trim() ?? '';
+                      const checked = (t as HTMLInputElement).checked;
+                      // Toggle in raw markdown
+                      const from = checked ? `- [ ] ${taskText}` : `- [x] ${taskText}`;
+                      const to   = checked ? `- [x] ${taskText}` : `- [ ] ${taskText}`;
+                      const next = content.replace(from, to);
+                      setContent(next);
+                      schedule(next, title, tags);
+                    }}
                   />
                 ) : (
                   <textarea
@@ -1269,6 +1337,13 @@ export default function SidePanelApp() {
                     title={focusMode ? 'Exit focus mode (Esc)' : 'Focus mode (Ctrl+Shift+F)'}
                   >{focusMode ? '⊠' : '⊡'}</button>
 
+                  {/* Reference panel (dual view) */}
+                  <button
+                    className={`sp-meta-toggle${showRefPanel ? ' active' : ''}`}
+                    onClick={() => setShowRefPanel(!showRefPanel)}
+                    title={showRefPanel ? 'Close reference panel' : 'Open reference panel'}
+                  >⊟</button>
+
                   {/* Copy */}
                   {content && (
                     <button
@@ -1278,6 +1353,90 @@ export default function SidePanelApp() {
                     >
                       {copied ? '✓' : '⎘'}
                     </button>
+                  )}
+
+                  {/* Version history */}
+                  {activeNoteId && (activeNote?.versions?.length ?? 0) > 0 && (
+                    <div style={{ position: 'relative' }} ref={historyRef}>
+                      <button
+                        className={`sp-meta-toggle${showHistory ? ' active' : ''}`}
+                        onClick={() => setShowHistory(!showHistory)}
+                        title="Version history"
+                      >🕐</button>
+                      {showHistory && (
+                        <div className="sp-history-panel">
+                          <div className="sp-history-header">Version History</div>
+                          {[...(activeNote!.versions ?? [])].reverse().map((v, i) => (
+                            <button
+                              key={i}
+                              className="sp-history-item"
+                              onClick={() => {
+                                setContent(v.content);
+                                if (v.title !== undefined) setTitle(v.title ?? '');
+                                schedule(v.content, v.title ?? title, tags);
+                                setShowHistory(false);
+                              }}
+                            >
+                              <span className="sp-history-time">{formatRelativeTime(v.savedAt)}</span>
+                              <span className="sp-history-preview">{v.content.trim().slice(0, 55) || '(empty)'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Reminder */}
+                  {activeNoteId && (
+                    <div style={{ position: 'relative' }} ref={reminderRef}>
+                      <button
+                        className={`sp-meta-toggle${activeNote?.reminderAt ? ' active' : ''}`}
+                        onClick={() => {
+                          if (activeNote?.reminderAt) {
+                            noteSvc.current.updateNote(activeNoteId, { reminderAt: undefined });
+                            cr?.runtime?.sendMessage({ type: 'CLEAR_REMINDER', noteId: activeNoteId });
+                            const url = currentUrlRef.current;
+                            noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current).then(setContextNotes);
+                          } else {
+                            setShowReminderPicker(!showReminderPicker);
+                          }
+                        }}
+                        title={activeNote?.reminderAt
+                          ? `Reminder set for ${new Date(activeNote.reminderAt).toLocaleString()} — click to clear`
+                          : 'Set reminder'}
+                      >{activeNote?.reminderAt ? '⏰✓' : '⏰'}</button>
+                      {showReminderPicker && (
+                        <div className="sp-reminder-picker">
+                          <div className="sp-reminder-label">Remind me at</div>
+                          <input
+                            type="datetime-local"
+                            className="sp-reminder-input"
+                            value={reminderInput}
+                            onChange={(e) => setReminderInput(e.target.value)}
+                            min={new Date().toISOString().slice(0, 16)}
+                          />
+                          <button
+                            className="sp-reminder-set-btn"
+                            disabled={!reminderInput}
+                            onClick={async () => {
+                              const ts = new Date(reminderInput).getTime();
+                              await noteSvc.current.updateNote(activeNoteId, { reminderAt: ts });
+                              cr?.runtime?.sendMessage({ type: 'SET_REMINDER', noteId: activeNoteId, reminderAt: ts, noteTitle: title || autoTitleFromContent(content) });
+                              const url = currentUrlRef.current;
+                              const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+                              setContextNotes(notes);
+                              setShowReminderPicker(false);
+                              setReminderInput('');
+                            }}
+                          >Set reminder</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Clip feedback badge */}
+                  {clipFeedback && (
+                    <span className="sp-clip-badge">📋 Clipped!</span>
                   )}
 
                   {/* Markdown preview */}
@@ -1292,6 +1451,61 @@ export default function SidePanelApp() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* ── Reference Panel (dual view) ── */}
+        {view === 'note' && showRefPanel && !isRestrictedUrl && (
+          <div className="sp-ref-panel">
+            <div className="sp-ref-panel-header">
+              <span className="sp-ref-panel-title">Reference</span>
+              <button className="sp-icon-btn" style={{ fontSize: 11 }} onClick={() => { setRefNoteId(null); setShowRefPanel(false); }}>✕</button>
+            </div>
+            {refNoteId === null ? (
+              <div className="sp-ref-note-list">
+                {contextNotes.filter((n) => n.id !== activeNoteId).length === 0 ? (
+                  <div className="sp-ref-empty">No other notes in this scope to reference.</div>
+                ) : (
+                  contextNotes.filter((n) => n.id !== activeNoteId).map((n, i) => (
+                    <button
+                      key={n.id}
+                      className="sp-ref-note-item"
+                      onClick={() => setRefNoteId(n.id)}
+                    >
+                      <span className="sp-ref-note-label">{pillLabel(n, i)}</span>
+                      <span className="sp-ref-note-preview">{n.content.trim().slice(0, 60) || '—'}</span>
+                    </button>
+                  ))
+                )}
+                {allNotes.filter((n) => n.id !== activeNoteId && !contextNotes.find((c) => c.id === n.id)).slice(0, 8).map((n, i) => (
+                  <button
+                    key={n.id}
+                    className="sp-ref-note-item"
+                    onClick={() => setRefNoteId(n.id)}
+                  >
+                    <span className="sp-ref-note-label">{pillLabel(n, i)}</span>
+                    <span className="sp-ref-note-preview" style={{ color: 'var(--text-subtle)' }}>
+                      {n.scope} · {n.content.trim().slice(0, 40) || '—'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (() => {
+              const rn = allNotes.find((n) => n.id === refNoteId);
+              if (!rn) return null;
+              return (
+                <div className="sp-ref-note-view">
+                  <div className="sp-ref-note-view-header">
+                    <button className="sp-ref-back" onClick={() => setRefNoteId(null)}>← Back</button>
+                    <span className="sp-ref-note-view-title">{rn.title || pillLabel(rn, 0)}</span>
+                  </div>
+                  <div
+                    className="sp-ref-note-content sp-markdown-preview"
+                    dangerouslySetInnerHTML={{ __html: rn.content ? parseMarkdown(rn.content) : '<p style="color:var(--text-subtle);font-style:italic">Empty note</p>' }}
+                  />
+                </div>
+              );
+            })()}
           </div>
         )}
 
