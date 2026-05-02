@@ -150,6 +150,17 @@ export default function SidePanelApp() {
   // Copy to clipboard feedback
   const [copied, setCopied] = useState(false);
 
+  // ── Folders ───────────────────────────────────────────────────
+  const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = All
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [renameFolderVal, setRenameFolderVal] = useState('');
+  const [showMovePicker, setShowMovePicker] = useState(false);
+  const folderMenuRef = useRef<HTMLDivElement>(null);
+  const newFolderRef = useRef<HTMLInputElement>(null);
+
   // Note colors & pins (stored in localStorage)
   const [noteColors, setNoteColors] = useState<Record<string, string>>({});
   const [pinnedNotes, setPinnedNotes] = useState<Set<string>>(new Set());
@@ -227,6 +238,21 @@ export default function SidePanelApp() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [colorPickerNoteId]);
+
+  // ── Click outside → close folder menu / move picker ──────────
+  useEffect(() => {
+    if (!folderMenuId && !showMovePicker) return;
+    const handle = (e: MouseEvent) => {
+      if (!folderMenuRef.current?.contains(e.target as Node)) {
+        setFolderMenuId(null);
+        setRenamingFolder(null);
+      }
+      const mp = document.querySelector('.sp-move-picker');
+      if (mp && !mp.contains(e.target as Node)) setShowMovePicker(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [folderMenuId, showMovePicker]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────
   useEffect(() => {
@@ -632,6 +658,71 @@ export default function SidePanelApp() {
     localStorage.setItem('tn_fontsize', String(next));
   };
 
+  // ── Folder operations ─────────────────────────────────────────
+  const createFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    const folder = name.startsWith('/') ? name : '/' + name;
+    setActiveFolder(folder);
+    setShowNewFolder(false);
+    setNewFolderName('');
+    // Create a blank note in that folder so it persists
+    const url = currentUrlRef.current;
+    if (!url || url.startsWith('chrome://')) return;
+    const created = await noteSvc.current.createNote({
+      scope: scopeRef.current, url, workspaceId: wsIdRef.current, folder,
+    });
+    const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+    setContextNotes(notes);
+    selectNote(created);
+    await refreshAllNotes();
+  };
+
+  const renameFolder = async (oldPath: string, newName: string) => {
+    const newPath = newName.startsWith('/') ? newName : '/' + newName;
+    const data = await adapter.current.get();
+    const updates: Record<string, Note> = { ...data.notes };
+    for (const [id, note] of Object.entries(updates)) {
+      if (note.folder === oldPath) {
+        updates[id] = { ...note, folder: newPath, updatedAt: Date.now() };
+      }
+    }
+    await adapter.current.set({ notes: updates });
+    if (activeFolder === oldPath) setActiveFolder(newPath);
+    setRenamingFolder(null);
+    setFolderMenuId(null);
+    const url = currentUrlRef.current;
+    const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+    setContextNotes(notes);
+    await refreshAllNotes();
+  };
+
+  const deleteFolder = async (path: string) => {
+    const data = await adapter.current.get();
+    const updates: Record<string, Note> = { ...data.notes };
+    for (const [id, note] of Object.entries(updates)) {
+      if (note.folder === path) {
+        updates[id] = { ...note, folder: undefined, updatedAt: Date.now() };
+      }
+    }
+    await adapter.current.set({ notes: updates });
+    if (activeFolder === path) setActiveFolder(null);
+    setFolderMenuId(null);
+    const url = currentUrlRef.current;
+    const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+    setContextNotes(notes);
+    await refreshAllNotes();
+  };
+
+  const moveNoteToFolder = async (noteId: string, folder: string | undefined) => {
+    await noteSvc.current.updateNote(noteId, { folder });
+    const url = currentUrlRef.current;
+    const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+    setContextNotes(notes);
+    await refreshAllNotes();
+    setShowMovePicker(false);
+  };
+
   // ── Apply template ────────────────────────────────────────────
   const applyTemplate = (tpl: typeof TEMPLATES[0]) => {
     let newTitle = tpl.title;
@@ -701,8 +792,15 @@ export default function SidePanelApp() {
   // ── Derived ──────────────────────────────────────────────────
   const activeNote = contextNotes.find((n) => n.id === activeNoteId) ?? null;
 
-  // Sort pinned notes first in the pills
-  const sortedContextNotes = [...contextNotes].sort((a, b) => {
+  // Derive folder list from context notes
+  const scopeFolders = [...new Set(contextNotes.map((n) => n.folder).filter(Boolean) as string[])].sort();
+
+  // Filter by active folder, then sort pinned first
+  const folderFilteredNotes = activeFolder === null
+    ? contextNotes
+    : contextNotes.filter((n) => (n.folder ?? '') === activeFolder || (activeFolder === '' && !n.folder));
+
+  const sortedContextNotes = [...folderFilteredNotes].sort((a, b) => {
     const aPin = pinnedNotes.has(a.id) ? 0 : 1;
     const bPin = pinnedNotes.has(b.id) ? 0 : 1;
     return aPin - bPin;
@@ -837,6 +935,93 @@ export default function SidePanelApp() {
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Folder bar ── */}
+      {view === 'note' && !isRestrictedUrl && (scopeFolders.length > 0 || showNewFolder) && (
+        <div className="sp-folder-bar" ref={folderMenuRef}>
+
+          {/* All chip */}
+          <button
+            className={`sp-folder-chip${activeFolder === null ? ' active' : ''}`}
+            onClick={() => setActiveFolder(null)}
+          >📁 All</button>
+
+          {/* Folder chips */}
+          {scopeFolders.map((f) => (
+            <div key={f} style={{ position: 'relative', flexShrink: 0 }}>
+              {renamingFolder === f ? (
+                <form
+                  style={{ display: 'flex', gap: 3 }}
+                  onSubmit={(e) => { e.preventDefault(); renameFolder(f, renameFolderVal); }}
+                >
+                  <input
+                    className="sp-folder-rename-input"
+                    value={renameFolderVal}
+                    onChange={(e) => setRenameFolderVal(e.target.value)}
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Escape') setRenamingFolder(null); }}
+                  />
+                  <button type="submit" className="sp-folder-chip active" style={{ padding: '2px 6px' }}>✓</button>
+                </form>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <button
+                    className={`sp-folder-chip${activeFolder === f ? ' active' : ''}`}
+                    onClick={() => setActiveFolder(activeFolder === f ? null : f)}
+                  >
+                    📂 {f.replace(/^\//, '')}
+                    <span className="sp-folder-chip-count">
+                      {contextNotes.filter((n) => n.folder === f).length}
+                    </span>
+                  </button>
+                  <button
+                    className="sp-folder-menu-btn"
+                    onClick={() => setFolderMenuId(folderMenuId === f ? null : f)}
+                    title="Folder options"
+                  >⋯</button>
+                  {folderMenuId === f && (
+                    <div className="sp-folder-menu">
+                      <button className="sp-folder-menu-item" onClick={() => {
+                        setRenamingFolder(f);
+                        setRenameFolderVal(f.replace(/^\//, ''));
+                        setFolderMenuId(null);
+                      }}>✏ Rename</button>
+                      <button className="sp-folder-menu-item danger" onClick={() => deleteFolder(f)}>
+                        🗑 Delete folder
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* New folder input */}
+          {showNewFolder ? (
+            <form
+              style={{ display: 'flex', gap: 3, flexShrink: 0 }}
+              onSubmit={(e) => { e.preventDefault(); createFolder(); }}
+            >
+              <input
+                ref={newFolderRef}
+                className="sp-folder-rename-input"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Folder name…"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName(''); }}}
+              />
+              <button type="submit" className="sp-folder-chip active" style={{ padding: '2px 6px' }}>✓</button>
+            </form>
+          ) : (
+            <button
+              className="sp-folder-chip new"
+              onClick={() => setShowNewFolder(true)}
+              title="New folder"
+            >＋</button>
+          )}
         </div>
       )}
 
@@ -995,6 +1180,37 @@ export default function SidePanelApp() {
                     </>
                   )}
                   <span className="sp-note-meta-spacer" />
+
+                  {/* Move to folder */}
+                  {activeNoteId && (
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        className={`sp-meta-toggle${activeNote?.folder ? ' active' : ''}`}
+                        onClick={() => setShowMovePicker(!showMovePicker)}
+                        title={activeNote?.folder ? `In ${activeNote.folder}` : 'Move to folder'}
+                      >📁{activeNote?.folder ? ' ' + activeNote.folder.replace(/^\//, '') : ''}</button>
+                      {showMovePicker && (
+                        <div className="sp-move-picker">
+                          <button
+                            className={`sp-move-item${!activeNote?.folder ? ' active' : ''}`}
+                            onClick={() => moveNoteToFolder(activeNoteId, undefined)}
+                          >📄 No folder (root)</button>
+                          {scopeFolders.map((f) => (
+                            <button
+                              key={f}
+                              className={`sp-move-item${activeNote?.folder === f ? ' active' : ''}`}
+                              onClick={() => moveNoteToFolder(activeNoteId, f)}
+                            >📂 {f.replace(/^\//, '')}</button>
+                          ))}
+                          <div className="sp-move-divider" />
+                          <button
+                            className="sp-move-item new"
+                            onClick={() => { setShowMovePicker(false); setShowNewFolder(true); }}
+                          >＋ New folder</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Insert date */}
                   <button className="sp-meta-toggle" onClick={insertDatetime} title="Insert date/time (Ctrl+D)">📅</button>
