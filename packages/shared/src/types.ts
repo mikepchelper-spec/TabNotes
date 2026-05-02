@@ -1,5 +1,11 @@
 export type NoteScope = 'url' | 'domain' | 'workspace' | 'global';
 
+export interface NoteVersion {
+  content: string;
+  title?: string;
+  savedAt: number;
+}
+
 export interface Note {
   id: string;
   workspaceId: string | null;
@@ -9,6 +15,8 @@ export interface Note {
   content: string;
   tags: string[];
   folder?: string;
+  versions?: NoteVersion[];
+  reminderAt?: number;
   createdAt: number;
   updatedAt: number;
 }
