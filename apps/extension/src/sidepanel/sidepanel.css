@@ -1774,6 +1774,15 @@ body {
 .sp-move-item.new { color: var(--accent); }
 .sp-move-divider { height: 1px; background: var(--border); margin: 2px 0; }
 
+/* ─── Pin badge on All Notes cards ──────────────────────────── */
+.sp-card-pin {
+  font-size: 10px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 2px;
+  opacity: .8;
+}
+
 /* ─── Writing streak badge ───────────────────────────────────── */
 .tn-streak-badge {
   display: flex;
