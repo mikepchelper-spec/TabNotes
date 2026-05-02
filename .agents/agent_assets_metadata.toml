@@ -18,3 +18,9 @@ id = "GY68eOWoy2egnUlAFFf6L"
 uri = "file://store/tabnotes-extension-v1.2.0.zip"
 type = "unspecified"
 title = "TabNotes Extension v1.2.0 — Bugs corregidos"
+
+[[outputs]]
+id = "71Ym47-KfQzKt47eKAvgc"
+uri = "file://store/tabnotes-extension-v1.3.0.zip"
+type = "unspecified"
+title = "TabNotes Extension v1.3.0 — Multi-nota por contexto"

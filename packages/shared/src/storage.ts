@@ -112,11 +112,16 @@ export class NotesService {
   }
 
   async getNoteByScope(scope: NoteScope, url: string, workspaceId?: string | null): Promise<Note | null> {
+    const notes = await this.getNotesByScope(scope, url, workspaceId);
+    return notes[0] ?? null;
+  }
+
+  async getNotesByScope(scope: NoteScope, url: string, workspaceId?: string | null): Promise<Note[]> {
     const data = await this.adapter.get();
     const scopeKey = getScopeKey(scope, url, workspaceId);
-    return Object.values(data.notes).find(
-      (n) => n.scope === scope && n.scopeKey === scopeKey && n.workspaceId === (workspaceId ?? null)
-    ) ?? null;
+    return Object.values(data.notes)
+      .filter((n) => n.scope === scope && n.scopeKey === scopeKey && n.workspaceId === (workspaceId ?? null))
+      .sort((a, b) => a.createdAt - b.createdAt);
   }
 
   async createNote(params: {

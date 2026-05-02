@@ -37,6 +37,15 @@ function parseMarkdown(text: string): string {
     .replace(/<p><\/p>/g, '');
 }
 
+function pillLabel(n: Note, idx: number): string {
+  if (n.title?.trim()) return n.title.trim();
+  if (n.content.trim()) {
+    const first = n.content.trim().split('\n')[0];
+    return first.length > 18 ? first.slice(0, 18) + '…' : first;
+  }
+  return `Note ${idx + 1}`;
+}
+
 export default function SidePanelApp() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('note');
@@ -51,17 +60,19 @@ export default function SidePanelApp() {
 
   // Notes / workspaces
   const [allNotes, setAllNotes] = useState<Note[]>([]);
+  const [contextNotes, setContextNotes] = useState<Note[]>([]);   // notes for current scope+URL
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [defaultScope, setDefaultScopeState] = useState<NoteScope>('domain');
 
-  // Editor
+  // Editor — active note within context
   const [scope, setScope] = useState<NoteScope>('domain');
-  const [note, setNote] = useState<Note | null>(null);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
   const [saved, setSaved] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Search
   const [searchQ, setSearchQ] = useState('');
@@ -73,14 +84,13 @@ export default function SidePanelApp() {
   const wsSvc = useRef(new WorkspacesService(adapter.current));
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  // ── Refs for stable callbacks (avoid stale closures) ──────────
-  const noteRef = useRef<Note | null>(null);
+  // Refs for stable autosave (no stale closures)
+  const activeNoteIdRef = useRef<string | null>(null);
   const scopeRef = useRef<NoteScope>('domain');
   const currentUrlRef = useRef('');
   const wsIdRef = useRef<string | null>(null);
 
-  // Keep refs in sync with state
-  useEffect(() => { noteRef.current = note; }, [note]);
+  useEffect(() => { activeNoteIdRef.current = activeNoteId; }, [activeNoteId]);
   useEffect(() => { scopeRef.current = scope; }, [scope]);
   useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
   useEffect(() => { wsIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
@@ -103,19 +113,42 @@ export default function SidePanelApp() {
     }
   }, [theme]);
 
-  // ── Load note for a given URL + scope ─────────────────────────
-  const loadNoteForUrl = useCallback(async (url: string, sc: NoteScope, wsId: string | null) => {
+  // ── Helpers ───────────────────────────────────────────────────
+  const refreshAllNotes = useCallback(async () => {
+    const notes = await noteSvc.current.getAllNotes();
+    setAllNotes(notes);
+    return notes;
+  }, []);
+
+  /** Load all notes for current scope+URL and activate one */
+  const loadContextNotes = useCallback(async (
+    url: string,
+    sc: NoteScope,
+    wsId: string | null,
+    preferNoteId?: string | null,
+  ) => {
     if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
-      setNote(null); setContent(''); setTitle(''); setTags('');
+      setContextNotes([]);
+      setActiveNoteId(null); activeNoteIdRef.current = null;
+      setContent(''); setTitle(''); setTags('');
       return;
     }
-    const n = await noteSvc.current.getNoteByScope(sc, url, wsId);
-    setNote(n);
-    setContent(n?.content ?? '');
-    setTitle(n?.title ?? '');
-    setTags(n?.tags.join(', ') ?? '');
+
+    const notes = await noteSvc.current.getNotesByScope(sc, url, wsId);
+    setContextNotes(notes);
+
+    const pick = preferNoteId
+      ? (notes.find((n) => n.id === preferNoteId) ?? notes[0] ?? null)
+      : (notes[0] ?? null);
+
+    setActiveNoteId(pick?.id ?? null);
+    activeNoteIdRef.current = pick?.id ?? null;
+    setContent(pick?.content ?? '');
+    setTitle(pick?.title ?? '');
+    setTags(pick?.tags.join(', ') ?? '');
     setSaved(false);
     setPreview(false);
+    setConfirmDelete(false);
   }, []);
 
   // ── Switch to a new tab URL ───────────────────────────────────
@@ -123,13 +156,14 @@ export default function SidePanelApp() {
     setTabLoading(true);
     setCurrentUrl(url);
     setCurrentDomain(normalizeDomain(url));
+    currentUrlRef.current = url;
 
-    const notes = await noteSvc.current.getAllNotes();
-    setAllNotes(notes);
-
-    await loadNoteForUrl(url, scopeRef.current, wsIdRef.current);
+    await Promise.all([
+      refreshAllNotes(),
+      loadContextNotes(url, scopeRef.current, wsIdRef.current),
+    ]);
     setTabLoading(false);
-  }, [loadNoteForUrl]);
+  }, [loadContextNotes, refreshAllNotes]);
 
   // ── Initial load ──────────────────────────────────────────────
   useEffect(() => {
@@ -143,67 +177,52 @@ export default function SidePanelApp() {
       ]);
 
       const sc: NoteScope = (storageData as StorageData).defaultScope ?? 'domain';
-      setDefaultScopeState(sc);
-      setScope(sc);
-      scopeRef.current = sc;
-
-      setActiveWorkspaceId(wsId);
-      wsIdRef.current = wsId;
-
+      setDefaultScopeState(sc); setScope(sc); scopeRef.current = sc;
+      setActiveWorkspaceId(wsId); wsIdRef.current = wsId;
       setWorkspaces(wsList);
       setMdState(storageData.markdownEnabled ?? false);
       setThemeState((storageData as unknown as { theme: typeof theme }).theme ?? 'system');
 
-      const notes = await noteSvc.current.getAllNotes();
-      setAllNotes(notes);
+      await refreshAllNotes();
 
       cr.tabs.query({ active: true, currentWindow: true }, async (tabs: { url?: string }[]) => {
         const url = tabs[0]?.url ?? '';
         setCurrentUrl(url);
         setCurrentDomain(normalizeDomain(url));
         currentUrlRef.current = url;
-
-        await loadNoteForUrl(url, sc, wsId);
+        await loadContextNotes(url, sc, wsId);
         setLoading(false);
       });
     };
 
     init();
-  }, [loadNoteForUrl]);
+  }, [loadContextNotes, refreshAllNotes]);
 
-  // ── Tab event listeners — the core fix ────────────────────────
+  // ── Tab event listeners ───────────────────────────────────────
   useEffect(() => {
     if (!cr?.tabs) return;
 
-    // User switches to a different tab
     const onActivated = (info: { tabId: number }) => {
-      cr.tabs.get(info.tabId, (tab: { url?: string; status?: string }) => {
+      cr.tabs.get(info.tabId, (tab: { url?: string }) => {
         if (cr.runtime.lastError) return;
         const url = tab?.url ?? '';
-        if (url !== currentUrlRef.current) {
-          switchToTab(url);
-        }
+        if (url !== currentUrlRef.current) switchToTab(url);
       });
     };
 
-    // URL changes in the active tab (navigation)
     const onUpdated = (
-      tabId: number,
-      changeInfo: { status?: string; url?: string },
-      tab: { active?: boolean; url?: string }
+      _tabId: number,
+      changeInfo: { status?: string },
+      tab: { active?: boolean; url?: string },
     ) => {
       if (!tab.active) return;
-      // Only fire when page finishes loading to get the final URL
-      if (changeInfo.status === 'complete' && tab.url) {
-        if (tab.url !== currentUrlRef.current) {
-          switchToTab(tab.url);
-        }
+      if (changeInfo.status === 'complete' && tab.url && tab.url !== currentUrlRef.current) {
+        switchToTab(tab.url);
       }
     };
 
     cr.tabs.onActivated.addListener(onActivated);
     cr.tabs.onUpdated.addListener(onUpdated);
-
     return () => {
       cr.tabs.onActivated.removeListener(onActivated);
       cr.tabs.onUpdated.removeListener(onUpdated);
@@ -212,54 +231,91 @@ export default function SidePanelApp() {
 
   // ── Scope switch ──────────────────────────────────────────────
   const handleScopeChange = async (s: NoteScope) => {
-    setScope(s);
-    scopeRef.current = s;
+    setScope(s); scopeRef.current = s;
     setPreview(false);
     clearTimeout(saveTimer.current);
-    await loadNoteForUrl(currentUrlRef.current, s, wsIdRef.current);
+    await loadContextNotes(currentUrlRef.current, s, wsIdRef.current);
+    await refreshAllNotes();
+  };
+
+  // ── Note picker ───────────────────────────────────────────────
+  const selectNote = (n: Note) => {
+    clearTimeout(saveTimer.current);
+    setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
+    setContent(n.content);
+    setTitle(n.title ?? '');
+    setTags(n.tags.join(', '));
+    setSaved(false); setPreview(false); setConfirmDelete(false);
+  };
+
+  const addNoteToContext = async () => {
+    const url = currentUrlRef.current;
+    if (!url || url.startsWith('chrome://')) return;
+    const created = await noteSvc.current.createNote({
+      scope: scopeRef.current,
+      url,
+      workspaceId: wsIdRef.current,
+    });
+    const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+    setContextNotes(notes);
+    selectNote(created);
+    await refreshAllNotes();
   };
 
   // ── Autosave — uses refs, never stale ────────────────────────
   const saveNote = useCallback(async (c: string, t: string, tg: string) => {
-    const currentNote = noteRef.current;
+    const id = activeNoteIdRef.current;
     const parsedTags = tg.split(',').map((s) => s.trim()).filter(Boolean);
-    let saved: Note | null;
+    let saved: Note | null = null;
 
-    if (currentNote) {
-      saved = await noteSvc.current.updateNote(currentNote.id, {
-        content: c,
-        title: t || undefined,
-        tags: parsedTags,
+    if (id) {
+      saved = await noteSvc.current.updateNote(id, {
+        content: c, title: t || undefined, tags: parsedTags,
       });
     } else {
       const url = currentUrlRef.current;
       if (!url || url.startsWith('chrome://')) return;
       saved = await noteSvc.current.createNote({
-        scope: scopeRef.current,
-        url,
-        workspaceId: wsIdRef.current,
-        content: c,
-        title: t || undefined,
-        tags: parsedTags,
+        scope: scopeRef.current, url, workspaceId: wsIdRef.current,
+        content: c, title: t || undefined, tags: parsedTags,
       });
     }
 
     if (saved) {
-      noteRef.current = saved;
-      setNote(saved);
+      activeNoteIdRef.current = saved.id;
+      setActiveNoteId(saved.id);
+      // Refresh context notes to reflect updated title in pill
+      const url = currentUrlRef.current;
+      const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+      setContextNotes(notes);
     }
 
     setSaved(true);
-    const notes = await noteSvc.current.getAllNotes();
-    setAllNotes(notes);
+    await refreshAllNotes();
     setTimeout(() => setSaved(false), 2000);
-  }, []); // No deps — uses refs only
+  }, [refreshAllNotes]);
 
   const schedule = useCallback((c: string, t: string, tg: string) => {
     setSaved(false);
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => saveNote(c, t, tg), 600);
   }, [saveNote]);
+
+  // ── Delete active note ────────────────────────────────────────
+  const deleteActiveNote = async () => {
+    const id = activeNoteIdRef.current;
+    if (!id) return;
+    clearTimeout(saveTimer.current);
+    await noteSvc.current.deleteNote(id);
+    const url = currentUrlRef.current;
+    const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+    setContextNotes(notes);
+    const next = notes[0] ?? null;
+    setActiveNoteId(next?.id ?? null); activeNoteIdRef.current = next?.id ?? null;
+    setContent(next?.content ?? ''); setTitle(next?.title ?? ''); setTags(next?.tags.join(', ') ?? '');
+    setSaved(false); setConfirmDelete(false);
+    await refreshAllNotes();
+  };
 
   // ── Settings helpers ──────────────────────────────────────────
   const setTheme = async (t: typeof theme) => {
@@ -276,6 +332,8 @@ export default function SidePanelApp() {
   };
 
   // ── Derived ──────────────────────────────────────────────────
+  const activeNote = contextNotes.find((n) => n.id === activeNoteId) ?? null;
+
   const scopeKey =
     scope === 'url'       ? normalizeUrl(currentUrl) :
     scope === 'domain'    ? currentDomain :
@@ -284,10 +342,9 @@ export default function SidePanelApp() {
 
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
   const filteredNotes = searchNotes(allNotes, searchQ);
-
-  const isRestrictedUrl = !currentUrl ||
-    currentUrl.startsWith('chrome://') ||
-    currentUrl.startsWith('chrome-extension://');
+  const isRestrictedUrl = !currentUrl
+    || currentUrl.startsWith('chrome://')
+    || currentUrl.startsWith('chrome-extension://');
 
   if (loading) {
     return (
@@ -339,7 +396,7 @@ export default function SidePanelApp() {
         </div>
       )}
 
-      {/* ── Context strip ── */}
+      {/* ── Context strip + note pills ── */}
       {view === 'note' && (
         <div className="sp-context-strip">
           <span className="sp-context-key" title={scopeKey}>
@@ -353,6 +410,32 @@ export default function SidePanelApp() {
               Saved
             </span>
           )}
+        </div>
+      )}
+
+      {/* ── Note picker pills ── */}
+      {view === 'note' && !isRestrictedUrl && (
+        <div className="sp-note-picker">
+          <div className="sp-note-pills">
+            {contextNotes.map((n, idx) => (
+              <button
+                key={n.id}
+                className={`sp-note-pill${n.id === activeNoteId ? ' active' : ''}`}
+                onClick={() => selectNote(n)}
+                title={n.title || `Note ${idx + 1}`}
+              >
+                {pillLabel(n, idx)}
+              </button>
+            ))}
+          </div>
+          <button
+            className="sp-note-pill-add"
+            onClick={addNoteToContext}
+            title="Add another note for this context"
+            disabled={tabLoading}
+          >
+            +
+          </button>
         </div>
       )}
 
@@ -374,7 +457,7 @@ export default function SidePanelApp() {
                   className="sp-note-title-input"
                   value={title}
                   onChange={(e) => { setTitle(e.target.value); schedule(content, e.target.value, tags); }}
-                  placeholder="Title"
+                  placeholder="Title (optional)"
                   disabled={tabLoading}
                 />
 
@@ -409,13 +492,33 @@ export default function SidePanelApp() {
                   <span className="sp-note-meta-text">{content.split(/\s+/).filter(Boolean).length}w</span>
                   <span className="sp-note-meta-sep">·</span>
                   <span className="sp-note-meta-text">{content.length}ch</span>
-                  {note && (
+                  {activeNote && (
                     <>
                       <span className="sp-note-meta-sep">·</span>
-                      <span className="sp-note-meta-text">{formatRelativeTime(note.updatedAt)}</span>
+                      <span className="sp-note-meta-text">{formatRelativeTime(activeNote.updatedAt)}</span>
                     </>
                   )}
                   <span className="sp-note-meta-spacer" />
+
+                  {/* Delete note button */}
+                  {activeNoteId && (
+                    confirmDelete ? (
+                      <span className="sp-delete-confirm">
+                        <button className="sp-meta-danger" onClick={deleteActiveNote}>Delete</button>
+                        <button className="sp-meta-toggle" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                      </span>
+                    ) : (
+                      <button
+                        className="sp-meta-toggle"
+                        onClick={() => setConfirmDelete(true)}
+                        title="Delete this note"
+                        style={{ color: 'var(--text-subtle)' }}
+                      >
+                        🗑
+                      </button>
+                    )
+                  )}
+
                   {markdownEnabled && (
                     <button
                       className={`sp-meta-toggle${preview ? ' active' : ''}`}
@@ -471,10 +574,10 @@ export default function SidePanelApp() {
                       className={`sp-note-card${isSelected ? ' selected' : ''}`}
                       onClick={() => {
                         setSelectedId(isSelected ? null : n.id);
-                        noteRef.current = n;
-                        setNote(n); setContent(n.content); setTitle(n.title ?? ''); setTags(n.tags.join(', '));
+                        setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
+                        setContent(n.content); setTitle(n.title ?? ''); setTags(n.tags.join(', '));
                         setScope(n.scope); scopeRef.current = n.scope;
-                        setView('note'); setPreview(false);
+                        setView('note'); setPreview(false); setConfirmDelete(false);
                       }}
                     >
                       <div className="sp-card-top">
@@ -499,16 +602,16 @@ export default function SidePanelApp() {
               className="sp-fab"
               title="New note"
               onClick={async () => {
+                const url = currentUrlRef.current || 'https://tabnotes.app';
                 const n = await noteSvc.current.createNote({
-                  scope: defaultScope,
-                  url: currentUrlRef.current || 'https://tabnotes.app',
-                  workspaceId: wsIdRef.current,
+                  scope: defaultScope, url, workspaceId: wsIdRef.current,
                 });
-                noteRef.current = n;
-                setNote(n); setContent(''); setTitle(''); setTags('');
+                setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
+                setContent(''); setTitle(''); setTags('');
                 setScope(defaultScope); scopeRef.current = defaultScope;
-                const notes = await noteSvc.current.getAllNotes();
-                setAllNotes(notes);
+                const notes = await noteSvc.current.getNotesByScope(defaultScope, url, wsIdRef.current);
+                setContextNotes(notes);
+                await refreshAllNotes();
                 setView('note');
               }}
             >+</button>
@@ -567,7 +670,10 @@ export default function SidePanelApp() {
               <div className="sp-scope-grid">
                 <div
                   className={`sp-scope-row${activeWorkspaceId === null ? ' active' : ''}`}
-                  onClick={async () => { await wsSvc.current.setActive(null); setActiveWorkspaceId(null); wsIdRef.current = null; }}
+                  onClick={async () => {
+                    await wsSvc.current.setActive(null);
+                    setActiveWorkspaceId(null); wsIdRef.current = null;
+                  }}
                 >
                   <span className="sp-scope-row-icon">🌍</span>
                   <div className="sp-scope-row-info">
@@ -580,7 +686,10 @@ export default function SidePanelApp() {
                   <div
                     key={ws.id}
                     className={`sp-scope-row${activeWorkspaceId === ws.id ? ' active' : ''}`}
-                    onClick={async () => { await wsSvc.current.setActive(ws.id); setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id; }}
+                    onClick={async () => {
+                      await wsSvc.current.setActive(ws.id);
+                      setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id;
+                    }}
                   >
                     <span className="sp-scope-row-icon">⊞</span>
                     <div className="sp-scope-row-info">
