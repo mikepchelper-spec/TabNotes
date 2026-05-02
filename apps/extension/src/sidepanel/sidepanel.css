@@ -1366,6 +1366,254 @@ body {
   row-gap: 3px;
 }
 
+/* ─── Interactive checkboxes in markdown preview ─────────────── */
+.sp-markdown-preview ul { list-style: none; padding-left: 4px; }
+.sp-markdown-preview .tn-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 3px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.sp-markdown-preview .tn-task input[type="checkbox"] {
+  margin: 0;
+  margin-top: 2px;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sp-markdown-preview .tn-task span { line-height: 1.5; }
+.sp-markdown-preview .tn-task.tn-done span {
+  text-decoration: line-through;
+  color: var(--text-subtle);
+}
+
+/* ─── Version history panel ──────────────────────────────────── */
+.sp-history-panel {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  right: 0;
+  min-width: 220px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 400;
+  animation: fadeIn 150ms var(--ease);
+}
+.sp-history-header {
+  padding: 7px 12px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  border-bottom: 1px solid var(--border);
+}
+.sp-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 100ms;
+  border-bottom: 1px solid var(--border);
+}
+.sp-history-item:last-child { border-bottom: none; }
+.sp-history-item:hover { background: var(--bg-subtle); }
+.sp-history-time {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.sp-history-preview {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Reminder picker ────────────────────────────────────────── */
+.sp-reminder-picker {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  right: 0;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 400;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 150ms var(--ease);
+}
+.sp-reminder-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.sp-reminder-input {
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  outline: none;
+  transition: border-color 120ms;
+}
+.sp-reminder-input:focus { border-color: var(--accent); }
+.sp-reminder-set-btn {
+  padding: 5px 0;
+  border-radius: var(--r-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.sp-reminder-set-btn:hover:not(:disabled) { background: var(--accent-dark, #1e45c8); }
+.sp-reminder-set-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ─── Clip feedback badge ────────────────────────────────────── */
+.sp-clip-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  animation: fadeIn 150ms var(--ease);
+  white-space: nowrap;
+}
+
+/* ─── Reference / dual panel ─────────────────────────────────── */
+.sp-ref-panel {
+  flex-shrink: 0;
+  border-top: 2px solid var(--border);
+  background: var(--bg-subtle);
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  min-height: 140px;
+  overflow: hidden;
+  animation: fadeIn 180ms var(--ease);
+}
+.sp-ref-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sp-ref-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-subtle);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.sp-ref-note-list {
+  overflow-y: auto;
+  flex: 1;
+}
+.sp-ref-note-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 100ms;
+}
+.sp-ref-note-item:last-child { border-bottom: none; }
+.sp-ref-note-item:hover { background: var(--bg-card); }
+.sp-ref-note-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-ref-note-preview {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-ref-empty {
+  padding: 16px 12px;
+  font-size: 11px;
+  color: var(--text-subtle);
+  text-align: center;
+}
+.sp-ref-note-view {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+.sp-ref-note-view-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sp-ref-back {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--font);
+  padding: 2px 0;
+  flex-shrink: 0;
+}
+.sp-ref-note-view-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-ref-note-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
 /* ─── Folder bar ─────────────────────────────────────────────── */
 .sp-folder-bar {
   display: flex;

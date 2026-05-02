@@ -1,4 +1,4 @@
-import type { Note, Workspace, StorageData, ExportData, NoteScope } from './types';
+import type { Note, NoteVersion, Workspace, StorageData, ExportData, NoteScope } from './types';
 import { generateId, getScopeKey } from './utils';
 
 export const STORAGE_VERSION = 2;
@@ -29,6 +29,8 @@ function migrateNote(raw: Partial<Note>): Note {
     content: raw.content ?? '',
     tags: raw.tags ?? [],
     folder: raw.folder,
+    versions: raw.versions ?? [],
+    reminderAt: raw.reminderAt,
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? Date.now(),
   };
@@ -140,6 +142,7 @@ export class NotesService {
       content: params.content ?? '',
       tags: params.tags ?? [],
       folder: params.folder,
+      versions: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -147,11 +150,22 @@ export class NotesService {
     return note;
   }
 
-  async updateNote(id: string, updates: Partial<Pick<Note, 'content' | 'title' | 'tags' | 'folder'>>): Promise<Note | null> {
+  async updateNote(
+    id: string,
+    updates: Partial<Pick<Note, 'content' | 'title' | 'tags' | 'folder' | 'reminderAt'>>,
+  ): Promise<Note | null> {
     const data = await this.adapter.get();
     const note = data.notes[id];
     if (!note) return null;
-    const updated: Note = { ...note, ...updates, updatedAt: Date.now() };
+
+    // Snapshot version before content changes (keep max 5)
+    const versions: NoteVersion[] = [...(note.versions ?? [])];
+    if (updates.content !== undefined && updates.content !== note.content) {
+      versions.push({ content: note.content, title: note.title, savedAt: note.updatedAt });
+      if (versions.length > 5) versions.splice(0, versions.length - 5);
+    }
+
+    const updated: Note = { ...note, ...updates, versions, updatedAt: Date.now() };
     await this.adapter.set({ notes: { ...data.notes, [id]: updated } });
     return updated;
   }

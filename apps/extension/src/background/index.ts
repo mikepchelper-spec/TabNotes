@@ -114,3 +114,64 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     await updateBadgeForActiveTab();
   }
 });
+
+// ── Message handler ───────────────────────────────────────────────────────────
+
+chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
+  // SET_REMINDER: schedule a chrome.alarms reminder for a note
+  if (msg.type === 'SET_REMINDER') {
+    const alarmName = 'tn_reminder_' + msg.noteId;
+    chrome.alarms.clear(alarmName);
+    if (msg.reminderAt && msg.reminderAt > Date.now()) {
+      chrome.alarms.create(alarmName, { when: msg.reminderAt });
+    }
+  }
+  // CLEAR_REMINDER: cancel a scheduled alarm
+  if (msg.type === 'CLEAR_REMINDER') {
+    chrome.alarms.clear('tn_reminder_' + msg.noteId);
+  }
+  // CLIP_TEXT: forwarded automatically to any open extension pages (sidepanel listens directly)
+});
+
+// ── Reminder alarms ───────────────────────────────────────────────────────────
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (!alarm.name.startsWith('tn_reminder_')) return;
+  const noteId = alarm.name.replace('tn_reminder_', '');
+
+  // Read note from storage to get title
+  try {
+    const result = await chrome.storage.local.get('tabnotes_data');
+    const data = result['tabnotes_data'] as {
+      notes?: Record<string, { title?: string; content?: string }>;
+    } | undefined;
+    const note = data?.notes?.[noteId];
+    const title = note?.title || (note?.content?.trim().split('\n')[0].slice(0, 60)) || 'TabNotes reminder';
+
+    chrome.notifications.create('tn_notif_' + noteId, {
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: '⏰ TabNotes Reminder',
+      message: title,
+      priority: 2,
+    });
+
+    // Clear the reminderAt from the note so it doesn't re-trigger
+    const notes = { ...(data?.notes ?? {}) };
+    if (notes[noteId]) {
+      notes[noteId] = { ...notes[noteId], reminderAt: undefined } as typeof notes[string];
+    }
+    await chrome.storage.local.set({
+      tabnotes_data: { ...(data ?? {}), notes },
+    });
+  } catch {}
+});
+
+// ── Notification click → open sidepanel ───────────────────────────────────────
+
+chrome.notifications.onClicked.addListener(async (notifId) => {
+  if (!notifId.startsWith('tn_notif_')) return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) chrome.sidePanel.open({ tabId: tab.id });
+  chrome.notifications.clear(notifId);
+});
