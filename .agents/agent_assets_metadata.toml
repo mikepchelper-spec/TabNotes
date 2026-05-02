@@ -12,3 +12,9 @@ id = "yGh-dqiL_8Sp42gBb__Sd"
 uri = "file://store/tabnotes-extension-v1.1.0.zip"
 type = "unspecified"
 title = "TabNotes Extension v1.1.0 — Chrome"
+
+[[outputs]]
+id = "GY68eOWoy2egnUlAFFf6L"
+uri = "file://store/tabnotes-extension-v1.2.0.zip"
+type = "unspecified"
+title = "TabNotes Extension v1.2.0 — Bugs corregidos"

@@ -38,24 +38,24 @@ function parseMarkdown(text: string): string {
 }
 
 export default function SidePanelApp() {
-  /* ── Core state ── */
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('note');
   const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system');
   const [markdownEnabled, setMdState] = useState(false);
   const [preview, setPreview] = useState(false);
 
-  /* ── Tab context ── */
+  // Tab context
   const [currentUrl, setCurrentUrl] = useState('');
   const [currentDomain, setCurrentDomain] = useState('');
+  const [tabLoading, setTabLoading] = useState(false);
 
-  /* ── Notes / workspaces ── */
+  // Notes / workspaces
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [defaultScope, setDefaultScopeState] = useState<NoteScope>('domain');
 
-  /* ── Current note editor ── */
+  // Editor
   const [scope, setScope] = useState<NoteScope>('domain');
   const [note, setNote] = useState<Note | null>(null);
   const [content, setContent] = useState('');
@@ -63,87 +63,197 @@ export default function SidePanelApp() {
   const [tags, setTags] = useState('');
   const [saved, setSaved] = useState(false);
 
-  /* ── All-notes search ── */
+  // Search
   const [searchQ, setSearchQ] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Services
   const adapter = useRef(new ChromeStorageAdapter());
   const noteSvc = useRef(new NotesService(adapter.current));
   const wsSvc = useRef(new WorkspacesService(adapter.current));
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  /* ── Theme detection ── */
+  // ── Refs for stable callbacks (avoid stale closures) ──────────
+  const noteRef = useRef<Note | null>(null);
+  const scopeRef = useRef<NoteScope>('domain');
+  const currentUrlRef = useRef('');
+  const wsIdRef = useRef<string | null>(null);
+
+  // Keep refs in sync with state
+  useEffect(() => { noteRef.current = note; }, [note]);
+  useEffect(() => { scopeRef.current = scope; }, [scope]);
+  useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
+  useEffect(() => { wsIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
+
+  // ── Theme ─────────────────────────────────────────────────────
   useEffect(() => {
     const apply = (t: typeof theme) => {
-      if (t === 'system') {
-        document.documentElement.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      } else {
-        document.documentElement.setAttribute('data-theme', t);
-      }
+      const resolved = t === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : t;
+      document.documentElement.setAttribute('data-theme', resolved);
     };
     apply(theme);
     if (theme === 'system') {
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
-      const h = (e: MediaQueryListEvent) => document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      const h = (e: MediaQueryListEvent) =>
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
       mq.addEventListener('change', h);
       return () => mq.removeEventListener('change', h);
     }
   }, [theme]);
 
-  /* ── Initial load ── */
-  const loadAll = useCallback(async (url: string, wsId: string | null, sc: NoteScope) => {
-    const [notes, wsList, data] = await Promise.all([
-      noteSvc.current.getAllNotes(),
-      wsSvc.current.getAll(),
-      adapter.current.get(),
-    ]);
-    setAllNotes(notes);
-    setWorkspaces(wsList);
-    setMdState(data.markdownEnabled ?? false);
-    setThemeState((data as unknown as { theme: typeof theme }).theme ?? 'system');
-    if (url) {
-      const n = await noteSvc.current.getNoteByScope(sc, url, wsId);
-      setNote(n); setContent(n?.content ?? ''); setTitle(n?.title ?? ''); setTags(n?.tags.join(', ') ?? '');
+  // ── Load note for a given URL + scope ─────────────────────────
+  const loadNoteForUrl = useCallback(async (url: string, sc: NoteScope, wsId: string | null) => {
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+      setNote(null); setContent(''); setTitle(''); setTags('');
+      return;
     }
+    const n = await noteSvc.current.getNoteByScope(sc, url, wsId);
+    setNote(n);
+    setContent(n?.content ?? '');
+    setTitle(n?.title ?? '');
+    setTags(n?.tags.join(', ') ?? '');
+    setSaved(false);
+    setPreview(false);
   }, []);
 
+  // ── Switch to a new tab URL ───────────────────────────────────
+  const switchToTab = useCallback(async (url: string) => {
+    setTabLoading(true);
+    setCurrentUrl(url);
+    setCurrentDomain(normalizeDomain(url));
+
+    const notes = await noteSvc.current.getAllNotes();
+    setAllNotes(notes);
+
+    await loadNoteForUrl(url, scopeRef.current, wsIdRef.current);
+    setTabLoading(false);
+  }, [loadNoteForUrl]);
+
+  // ── Initial load ──────────────────────────────────────────────
   useEffect(() => {
     if (!cr?.tabs) { setLoading(false); return; }
-    cr.tabs.query({ active: true, currentWindow: true }, async (tabs: { url?: string }[]) => {
-      const url = tabs[0]?.url ?? '';
-      setCurrentUrl(url);
-      setCurrentDomain(normalizeDomain(url));
-      const [wsId, storageData] = await Promise.all([wsSvc.current.getActive(), adapter.current.get()]);
-      setActiveWorkspaceId(wsId);
-      const sc: NoteScope = (storageData as StorageData).defaultScope ?? 'domain';
-      setDefaultScopeState(sc); setScope(sc);
-      await loadAll(url, wsId, sc);
-      setLoading(false);
-    });
-  }, [loadAll]);
 
-  /* ── Scope switch ── */
+    const init = async () => {
+      const [storageData, wsId, wsList] = await Promise.all([
+        adapter.current.get(),
+        wsSvc.current.getActive(),
+        wsSvc.current.getAll(),
+      ]);
+
+      const sc: NoteScope = (storageData as StorageData).defaultScope ?? 'domain';
+      setDefaultScopeState(sc);
+      setScope(sc);
+      scopeRef.current = sc;
+
+      setActiveWorkspaceId(wsId);
+      wsIdRef.current = wsId;
+
+      setWorkspaces(wsList);
+      setMdState(storageData.markdownEnabled ?? false);
+      setThemeState((storageData as unknown as { theme: typeof theme }).theme ?? 'system');
+
+      const notes = await noteSvc.current.getAllNotes();
+      setAllNotes(notes);
+
+      cr.tabs.query({ active: true, currentWindow: true }, async (tabs: { url?: string }[]) => {
+        const url = tabs[0]?.url ?? '';
+        setCurrentUrl(url);
+        setCurrentDomain(normalizeDomain(url));
+        currentUrlRef.current = url;
+
+        await loadNoteForUrl(url, sc, wsId);
+        setLoading(false);
+      });
+    };
+
+    init();
+  }, [loadNoteForUrl]);
+
+  // ── Tab event listeners — the core fix ────────────────────────
+  useEffect(() => {
+    if (!cr?.tabs) return;
+
+    // User switches to a different tab
+    const onActivated = (info: { tabId: number }) => {
+      cr.tabs.get(info.tabId, (tab: { url?: string; status?: string }) => {
+        if (cr.runtime.lastError) return;
+        const url = tab?.url ?? '';
+        if (url !== currentUrlRef.current) {
+          switchToTab(url);
+        }
+      });
+    };
+
+    // URL changes in the active tab (navigation)
+    const onUpdated = (
+      tabId: number,
+      changeInfo: { status?: string; url?: string },
+      tab: { active?: boolean; url?: string }
+    ) => {
+      if (!tab.active) return;
+      // Only fire when page finishes loading to get the final URL
+      if (changeInfo.status === 'complete' && tab.url) {
+        if (tab.url !== currentUrlRef.current) {
+          switchToTab(tab.url);
+        }
+      }
+    };
+
+    cr.tabs.onActivated.addListener(onActivated);
+    cr.tabs.onUpdated.addListener(onUpdated);
+
+    return () => {
+      cr.tabs.onActivated.removeListener(onActivated);
+      cr.tabs.onUpdated.removeListener(onUpdated);
+    };
+  }, [switchToTab]);
+
+  // ── Scope switch ──────────────────────────────────────────────
   const handleScopeChange = async (s: NoteScope) => {
-    setScope(s); setPreview(false);
-    const n = await noteSvc.current.getNoteByScope(s, currentUrl, activeWorkspaceId);
-    setNote(n); setContent(n?.content ?? ''); setTitle(n?.title ?? ''); setTags(n?.tags.join(', ') ?? '');
-    setSaved(false);
+    setScope(s);
+    scopeRef.current = s;
+    setPreview(false);
+    clearTimeout(saveTimer.current);
+    await loadNoteForUrl(currentUrlRef.current, s, wsIdRef.current);
   };
 
-  /* ── Autosave ── */
+  // ── Autosave — uses refs, never stale ────────────────────────
   const saveNote = useCallback(async (c: string, t: string, tg: string) => {
+    const currentNote = noteRef.current;
     const parsedTags = tg.split(',').map((s) => s.trim()).filter(Boolean);
-    if (note) {
-      await noteSvc.current.updateNote(note.id, { content: c, title: t || undefined, tags: parsedTags });
+    let saved: Note | null;
+
+    if (currentNote) {
+      saved = await noteSvc.current.updateNote(currentNote.id, {
+        content: c,
+        title: t || undefined,
+        tags: parsedTags,
+      });
     } else {
-      const created = await noteSvc.current.createNote({ scope, url: currentUrl, workspaceId: activeWorkspaceId, content: c, title: t || undefined, tags: parsedTags });
-      setNote(created);
+      const url = currentUrlRef.current;
+      if (!url || url.startsWith('chrome://')) return;
+      saved = await noteSvc.current.createNote({
+        scope: scopeRef.current,
+        url,
+        workspaceId: wsIdRef.current,
+        content: c,
+        title: t || undefined,
+        tags: parsedTags,
+      });
     }
+
+    if (saved) {
+      noteRef.current = saved;
+      setNote(saved);
+    }
+
     setSaved(true);
     const notes = await noteSvc.current.getAllNotes();
     setAllNotes(notes);
     setTimeout(() => setSaved(false), 2000);
-  }, [note, scope, currentUrl, activeWorkspaceId]);
+  }, []); // No deps — uses refs only
 
   const schedule = useCallback((c: string, t: string, tg: string) => {
     setSaved(false);
@@ -151,7 +261,7 @@ export default function SidePanelApp() {
     saveTimer.current = setTimeout(() => saveNote(c, t, tg), 600);
   }, [saveNote]);
 
-  /* ── Settings helpers ── */
+  // ── Settings helpers ──────────────────────────────────────────
   const setTheme = async (t: typeof theme) => {
     setThemeState(t);
     await adapter.current.set({ theme: t as 'light' | 'dark' | 'system' });
@@ -165,10 +275,19 @@ export default function SidePanelApp() {
     await adapter.current.set({ defaultScope: s });
   };
 
-  /* ── Derived ── */
-  const scopeKey = scope === 'url' ? normalizeUrl(currentUrl) : scope === 'domain' ? currentDomain : scope === 'workspace' ? (workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? 'Workspace') : 'Global';
+  // ── Derived ──────────────────────────────────────────────────
+  const scopeKey =
+    scope === 'url'       ? normalizeUrl(currentUrl) :
+    scope === 'domain'    ? currentDomain :
+    scope === 'workspace' ? (workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? 'Workspace') :
+    'Global';
+
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
   const filteredNotes = searchNotes(allNotes, searchQ);
+
+  const isRestrictedUrl = !currentUrl ||
+    currentUrl.startsWith('chrome://') ||
+    currentUrl.startsWith('chrome-extension://');
 
   if (loading) {
     return (
@@ -179,7 +298,6 @@ export default function SidePanelApp() {
     );
   }
 
-  /* ══════════════════════════════════════════════════════════════ */
   return (
     <div className="sp-root">
 
@@ -191,17 +309,20 @@ export default function SidePanelApp() {
         </div>
         <div className="sp-workspace-pill" onClick={() => setView('settings')}>
           <div className="sp-workspace-dot" style={{ background: activeWs ? 'var(--accent)' : 'var(--text-subtle)' }} />
-          <span>{activeWs ? activeWs.name : 'No Workspace'}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 90 }}>
+            {activeWs ? activeWs.name : 'No Workspace'}
+          </span>
         </div>
         <div className="sp-header-actions">
+          {tabLoading && <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />}
           <button className="sp-icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
             {theme === 'dark' ? '☀' : '☽'}
           </button>
-          <button className="sp-icon-btn" onClick={() => cr?.runtime?.openOptionsPage()} title="Full settings">⚙</button>
+          <button className="sp-icon-btn" onClick={() => cr?.runtime?.openOptionsPage()} title="Settings">⚙</button>
         </div>
       </div>
 
-      {/* ── Scope bar (only for note view) ── */}
+      {/* ── Scope bar ── */}
       {view === 'note' && (
         <div className="sp-scope-bar">
           {SCOPE_OPTIONS.map((opt) => (
@@ -209,6 +330,7 @@ export default function SidePanelApp() {
               key={opt.value}
               className={`sp-scope-btn ${scope === opt.value ? 'active' : ''}`}
               onClick={() => handleScopeChange(opt.value)}
+              disabled={tabLoading}
             >
               <span className="sp-scope-icon">{opt.icon}</span>
               <span>{opt.label}</span>
@@ -217,10 +339,12 @@ export default function SidePanelApp() {
         </div>
       )}
 
-      {/* ── Context strip (only for note view) ── */}
+      {/* ── Context strip ── */}
       {view === 'note' && (
         <div className="sp-context-strip">
-          <span className="sp-context-key">{scopeKey || '—'}</span>
+          <span className="sp-context-key" title={scopeKey}>
+            {tabLoading ? 'Switching tab…' : (scopeKey || '—')}
+          </span>
           {saved && (
             <span className="sp-save-badge">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -235,65 +359,78 @@ export default function SidePanelApp() {
       {/* ── Main content ── */}
       <div className="sp-content">
 
-        {/* View: Note editor */}
+        {/* Note editor */}
         {view === 'note' && (
           <div className="sp-note-view">
-            <input
-              className="sp-note-title-input"
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); schedule(content, e.target.value, tags); }}
-              placeholder="Title"
-            />
-
-            {preview && markdownEnabled ? (
-              <div
-                className="sp-markdown-preview"
-                dangerouslySetInnerHTML={{ __html: content ? parseMarkdown(content) : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>' }}
-              />
+            {isRestrictedUrl ? (
+              <div className="sp-empty-state" style={{ flex: 1 }}>
+                <div className="sp-empty-icon">🔒</div>
+                <div className="sp-empty-title">Can't access this page</div>
+                <div className="sp-empty-desc">TabNotes can't add notes to Chrome system pages. Navigate to any website.</div>
+              </div>
             ) : (
-              <textarea
-                className={`sp-note-textarea${markdownEnabled ? ' mono' : ''}`}
-                autoFocus
-                value={content}
-                onChange={(e) => { setContent(e.target.value); schedule(e.target.value, title, tags); }}
-                placeholder={`Note for this ${scope}…`}
-              />
-            )}
+              <>
+                <input
+                  className="sp-note-title-input"
+                  value={title}
+                  onChange={(e) => { setTitle(e.target.value); schedule(content, e.target.value, tags); }}
+                  placeholder="Title"
+                  disabled={tabLoading}
+                />
 
-            <div className="sp-tags-row">
-              <span className="sp-tags-label">Tags</span>
-              <input
-                className="sp-tags-input"
-                value={tags}
-                onChange={(e) => { setTags(e.target.value); schedule(content, title, e.target.value); }}
-                placeholder="tag1, tag2, tag3"
-              />
-            </div>
+                {preview && markdownEnabled ? (
+                  <div
+                    className="sp-markdown-preview"
+                    dangerouslySetInnerHTML={{ __html: content ? parseMarkdown(content) : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>' }}
+                  />
+                ) : (
+                  <textarea
+                    className={`sp-note-textarea${markdownEnabled ? ' mono' : ''}`}
+                    autoFocus={!tabLoading}
+                    value={content}
+                    onChange={(e) => { setContent(e.target.value); schedule(e.target.value, title, tags); }}
+                    placeholder={`Note for this ${scope}…`}
+                    disabled={tabLoading}
+                  />
+                )}
 
-            <div className="sp-note-meta">
-              <span className="sp-note-meta-text">{content.split(/\s+/).filter(Boolean).length}w</span>
-              <span className="sp-note-meta-sep">·</span>
-              <span className="sp-note-meta-text">{content.length}ch</span>
-              {note && (
-                <>
+                <div className="sp-tags-row">
+                  <span className="sp-tags-label">Tags</span>
+                  <input
+                    className="sp-tags-input"
+                    value={tags}
+                    onChange={(e) => { setTags(e.target.value); schedule(content, title, e.target.value); }}
+                    placeholder="tag1, tag2, tag3"
+                    disabled={tabLoading}
+                  />
+                </div>
+
+                <div className="sp-note-meta">
+                  <span className="sp-note-meta-text">{content.split(/\s+/).filter(Boolean).length}w</span>
                   <span className="sp-note-meta-sep">·</span>
-                  <span className="sp-note-meta-text">{formatRelativeTime(note.updatedAt)}</span>
-                </>
-              )}
-              <span className="sp-note-meta-spacer" />
-              {markdownEnabled && (
-                <button
-                  className={`sp-meta-toggle${preview ? ' active' : ''}`}
-                  onClick={() => setPreview(!preview)}
-                >
-                  {preview ? '✎ Edit' : '◈ Preview'}
-                </button>
-              )}
-            </div>
+                  <span className="sp-note-meta-text">{content.length}ch</span>
+                  {note && (
+                    <>
+                      <span className="sp-note-meta-sep">·</span>
+                      <span className="sp-note-meta-text">{formatRelativeTime(note.updatedAt)}</span>
+                    </>
+                  )}
+                  <span className="sp-note-meta-spacer" />
+                  {markdownEnabled && (
+                    <button
+                      className={`sp-meta-toggle${preview ? ' active' : ''}`}
+                      onClick={() => setPreview(!preview)}
+                    >
+                      {preview ? '✎ Edit' : '◈ Preview'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
-        {/* View: All notes */}
+        {/* All notes */}
         {view === 'all' && (
           <div className="sp-all-view">
             <div className="sp-search-wrap">
@@ -307,7 +444,10 @@ export default function SidePanelApp() {
                   autoFocus
                 />
                 {searchQ && (
-                  <button onClick={() => setSearchQ('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 12, padding: 0, fontFamily: 'var(--font)' }}>✕</button>
+                  <button
+                    onClick={() => setSearchQ('')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 12, padding: 0, fontFamily: 'var(--font)' }}
+                  >✕</button>
                 )}
               </div>
             </div>
@@ -317,7 +457,9 @@ export default function SidePanelApp() {
                 <div className="sp-empty-state">
                   <div className="sp-empty-icon">✎</div>
                   <div className="sp-empty-title">{searchQ ? 'No results' : 'No notes yet'}</div>
-                  <div className="sp-empty-desc">{searchQ ? `Nothing matched "${searchQ}"` : 'Switch to Note tab and start writing.'}</div>
+                  <div className="sp-empty-desc">
+                    {searchQ ? `Nothing matched "${searchQ}"` : 'Switch to Note tab and start writing.'}
+                  </div>
                 </div>
               ) : (
                 filteredNotes.map((n) => {
@@ -329,8 +471,10 @@ export default function SidePanelApp() {
                       className={`sp-note-card${isSelected ? ' selected' : ''}`}
                       onClick={() => {
                         setSelectedId(isSelected ? null : n.id);
+                        noteRef.current = n;
                         setNote(n); setContent(n.content); setTitle(n.title ?? ''); setTags(n.tags.join(', '));
-                        setScope(n.scope); setView('note'); setPreview(false);
+                        setScope(n.scope); scopeRef.current = n.scope;
+                        setView('note'); setPreview(false);
                       }}
                     >
                       <div className="sp-card-top">
@@ -351,13 +495,18 @@ export default function SidePanelApp() {
               )}
             </div>
 
-            {/* FAB — new note */}
             <button
               className="sp-fab"
               title="New note"
               onClick={async () => {
-                const n = await noteSvc.current.createNote({ scope: defaultScope, url: currentUrl, workspaceId: activeWorkspaceId });
-                setNote(n); setContent(''); setTitle(''); setTags(''); setScope(defaultScope);
+                const n = await noteSvc.current.createNote({
+                  scope: defaultScope,
+                  url: currentUrlRef.current || 'https://tabnotes.app',
+                  workspaceId: wsIdRef.current,
+                });
+                noteRef.current = n;
+                setNote(n); setContent(''); setTitle(''); setTags('');
+                setScope(defaultScope); scopeRef.current = defaultScope;
                 const notes = await noteSvc.current.getAllNotes();
                 setAllNotes(notes);
                 setView('note');
@@ -366,10 +515,9 @@ export default function SidePanelApp() {
           </div>
         )}
 
-        {/* View: Settings */}
+        {/* Settings */}
         {view === 'settings' && (
           <div className="sp-settings-view">
-            {/* Theme */}
             <div className="sp-settings-section">
               <div className="sp-settings-label">Appearance</div>
               <div className="sp-theme-grid">
@@ -381,7 +529,6 @@ export default function SidePanelApp() {
               </div>
             </div>
 
-            {/* Editor */}
             <div className="sp-settings-section">
               <div className="sp-settings-label">Editor</div>
               <div className="sp-settings-row">
@@ -395,12 +542,15 @@ export default function SidePanelApp() {
               </div>
             </div>
 
-            {/* Default scope */}
             <div className="sp-settings-section">
               <div className="sp-settings-label">Default Scope</div>
               <div className="sp-scope-grid">
                 {SCOPE_OPTIONS.map((s) => (
-                  <div key={s.value} className={`sp-scope-row${defaultScope === s.value ? ' active' : ''}`} onClick={() => setDefaultScope(s.value)}>
+                  <div
+                    key={s.value}
+                    className={`sp-scope-row${defaultScope === s.value ? ' active' : ''}`}
+                    onClick={() => setDefaultScope(s.value)}
+                  >
                     <span className="sp-scope-row-icon">{s.icon}</span>
                     <div className="sp-scope-row-info">
                       <div className="sp-scope-row-name">{s.label}</div>
@@ -412,11 +562,13 @@ export default function SidePanelApp() {
               </div>
             </div>
 
-            {/* Workspace */}
             <div className="sp-settings-section">
               <div className="sp-settings-label">Active Workspace</div>
               <div className="sp-scope-grid">
-                <div className={`sp-scope-row${activeWorkspaceId === null ? ' active' : ''}`} onClick={async () => { await wsSvc.current.setActive(null); setActiveWorkspaceId(null); }}>
+                <div
+                  className={`sp-scope-row${activeWorkspaceId === null ? ' active' : ''}`}
+                  onClick={async () => { await wsSvc.current.setActive(null); setActiveWorkspaceId(null); wsIdRef.current = null; }}
+                >
                   <span className="sp-scope-row-icon">🌍</span>
                   <div className="sp-scope-row-info">
                     <div className="sp-scope-row-name">No Workspace</div>
@@ -425,7 +577,11 @@ export default function SidePanelApp() {
                   {activeWorkspaceId === null && <span className="sp-scope-row-check">✓</span>}
                 </div>
                 {workspaces.map((ws) => (
-                  <div key={ws.id} className={`sp-scope-row${activeWorkspaceId === ws.id ? ' active' : ''}`} onClick={async () => { await wsSvc.current.setActive(ws.id); setActiveWorkspaceId(ws.id); }}>
+                  <div
+                    key={ws.id}
+                    className={`sp-scope-row${activeWorkspaceId === ws.id ? ' active' : ''}`}
+                    onClick={async () => { await wsSvc.current.setActive(ws.id); setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id; }}
+                  >
                     <span className="sp-scope-row-icon">⊞</span>
                     <div className="sp-scope-row-info">
                       <div className="sp-scope-row-name">{ws.name}</div>
@@ -437,7 +593,6 @@ export default function SidePanelApp() {
               </div>
             </div>
 
-            {/* Stats */}
             <div className="sp-settings-section">
               <div className="sp-settings-label">Stats</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
@@ -454,7 +609,6 @@ export default function SidePanelApp() {
               </div>
             </div>
 
-            {/* Pro card */}
             <div className="sp-pro-card">
               <div className="sp-pro-title">✦ TabNotes Pro — Coming Soon</div>
               <div className="sp-pro-desc">Sync across devices, web dashboard access, note history and premium themes.</div>
