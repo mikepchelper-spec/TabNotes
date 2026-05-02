@@ -1,9 +1,9 @@
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('TabNotes installed');
+  chrome.sidePanel.setOptions({ enabled: true });
 });
 
 chrome.action.onClicked.addListener((tab) => {
   if (tab.id) {
-    chrome.action.openPopup();
+    chrome.sidePanel.open({ tabId: tab.id });
   }
 });
