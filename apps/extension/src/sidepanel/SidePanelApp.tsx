@@ -252,6 +252,9 @@ export default function SidePanelApp() {
   const [digestEnabled, setDigestEnabled] = useState(false);
   const [digestTime, setDigestTime] = useState('09:00');
 
+  // ── Writing Streak ────────────────────────────────────────────
+  const [streak, setStreak] = useState(0);
+
   // ── Command palette ───────────────────────────────────────────
   const [showCmdPalette, setShowCmdPalette] = useState(false);
   const [cmdQuery, setCmdQuery]             = useState('');
@@ -633,6 +636,15 @@ export default function SidePanelApp() {
         if (d) { setDigestEnabled(d.enabled ?? false); setDigestTime(d.time ?? '09:00'); }
       }
 
+      // Load writing streak
+      if (cr?.storage?.local?.get) {
+        const sr = await new Promise<Record<string, unknown>>((res) =>
+          cr.storage.local.get('tn_streak', res)
+        );
+        const s = sr['tn_streak'] as { count?: number } | undefined;
+        if (s?.count) setStreak(s.count);
+      }
+
       await refreshAllNotes();
 
       cr.tabs.query({ active: true, currentWindow: true }, async (tabs: { url?: string }[]) => {
@@ -730,6 +742,7 @@ export default function SidePanelApp() {
     setContextNotes(notes);
     selectNote(created);
     await refreshAllNotes();
+    updateStreak();
   };
 
   // ── Autosave — uses refs, never stale ────────────────────────
@@ -771,8 +784,9 @@ export default function SidePanelApp() {
 
     setSaved(true);
     await refreshAllNotes();
+    updateStreak();
     setTimeout(() => setSaved(false), 2000);
-  }, [refreshAllNotes]);
+  }, [refreshAllNotes, updateStreak]);
 
   const schedule = useCallback((c: string, t: string, tg: string) => {
     setSaved(false);
@@ -852,6 +866,25 @@ ${parseMarkdown(content)}
   const saveDigest = (enabled: boolean, time: string) => {
     cr?.runtime?.sendMessage({ type: 'SET_DIGEST', enabled, time });
   };
+
+  // ── Writing Streak update ─────────────────────────────────────
+  const updateStreak = React.useCallback(async () => {
+    if (!cr?.storage?.local) return;
+    const today = new Date().toISOString().split('T')[0];
+    const sr = await new Promise<Record<string, unknown>>((res) =>
+      cr.storage.local.get('tn_streak', res)
+    );
+    const s = sr['tn_streak'] as { count?: number; lastDate?: string } | undefined;
+    if (s?.lastDate === today) return; // already counted today
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+    const newCount = s?.lastDate === yStr ? (s.count ?? 0) + 1 : 1;
+    await new Promise<void>((res) =>
+      cr.storage.local.set({ tn_streak: { count: newCount, lastDate: today } }, res)
+    );
+    setStreak(newCount);
+  }, []);
 
   // ── Wiki link autocomplete ───────────────────────────────────
   const insertWikiLink = (noteTitle: string) => {
@@ -1304,6 +1337,13 @@ ${parseMarkdown(content)}
         </div>
         <div className="sp-header-actions">
           {tabLoading && <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />}
+
+          {/* Writing streak */}
+          {streak >= 2 && (
+            <div className="tn-streak-badge" title={`${streak}-day writing streak! Keep it up.`}>
+              🔥 {streak}
+            </div>
+          )}
 
           {/* Connection status indicator */}
           {!isOnline && (
