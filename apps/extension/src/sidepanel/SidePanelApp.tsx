@@ -242,6 +242,9 @@ export default function SidePanelApp() {
   const [wsDropdown, setWsDropdown] = useState(false);
   const wsDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Quick-capture: ref so the storage.onChanged handler can call it without stale closure
+  const addNoteToContextRef = useRef<() => Promise<void>>(async () => {});
+
   // Tag filter in All Notes
   const [tagFilter, setTagFilter] = useState<string | null>(null);
 
@@ -409,6 +412,15 @@ export default function SidePanelApp() {
       changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
       area: string,
     ) => {
+      // Quick-capture: background sets this flag when Ctrl+Shift+N is pressed
+      if (area === 'local' && changes['tn_quick_capture']?.newValue) {
+        cr.storage.local.remove('tn_quick_capture');
+        addNoteToContextRef.current().then(() => {
+          setView('note');
+          setTimeout(() => textareaRef.current?.focus(), 120);
+        });
+        return;
+      }
       if (area !== 'local' || !changes.notes) return;
       // Skip if this change was triggered by our own save (within 1.2 s window)
       if (Date.now() - lastSaveTs.current < 1200) return;
@@ -653,6 +665,18 @@ export default function SidePanelApp() {
         setCurrentDomain(normalizeDomain(url));
         currentUrlRef.current = url;
         await loadContextNotes(url, sc, wsId);
+
+        // Quick-capture: check if the shortcut was pressed while panel was closed
+        const qcData = await new Promise<Record<string, unknown>>((res) =>
+          cr.storage.local.get('tn_quick_capture', res)
+        );
+        if (qcData['tn_quick_capture']) {
+          cr.storage.local.remove('tn_quick_capture');
+          await addNoteToContextRef.current();
+          setView('note');
+          setTimeout(() => textareaRef.current?.focus(), 120);
+        }
+
         setLoading(false);
       });
     };
@@ -744,6 +768,7 @@ export default function SidePanelApp() {
     await refreshAllNotes();
     updateStreak();
   };
+  addNoteToContextRef.current = addNoteToContext;
 
   // ── Autosave — uses refs, never stale ────────────────────────
   const saveNote = useCallback(async (c: string, t: string, tg: string) => {

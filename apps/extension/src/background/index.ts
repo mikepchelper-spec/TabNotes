@@ -146,6 +146,14 @@ chrome.commands.onCommand.addListener(async (command) => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) chrome.sidePanel.open({ tabId: tab.id });
   }
+  if (command === 'quick-capture') {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      // Open panel first, then set flag — panel reads it on load or via onChanged
+      chrome.sidePanel.open({ tabId: tab.id });
+      await chrome.storage.local.set({ tn_quick_capture: Date.now() });
+    }
+  }
 });
 
 // ── Badge: update when active tab changes ─────────────────────────────────────
