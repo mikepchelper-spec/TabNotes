@@ -1365,3 +1365,163 @@ body {
   gap: 2px;
   row-gap: 3px;
 }
+
+/* ─── Folder bar ─────────────────────────────────────────────── */
+.sp-folder-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sp-folder-bar::-webkit-scrollbar { display: none; }
+
+.sp-folder-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 120ms var(--ease);
+}
+.sp-folder-chip:hover:not(.active):not(.new) {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.sp-folder-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.sp-folder-chip.new {
+  background: transparent;
+  border-style: dashed;
+  color: var(--text-subtle);
+}
+.sp-folder-chip.new:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.sp-folder-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: rgba(0,0,0,0.12);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+.sp-folder-chip.active .sp-folder-chip-count { background: rgba(255,255,255,0.3); }
+
+.sp-folder-menu-btn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-subtle);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 100ms;
+}
+.sp-folder-menu-btn:hover { background: var(--bg-muted); color: var(--text); }
+
+.sp-folder-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 130px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 300;
+  overflow: hidden;
+  animation: fadeIn 150ms var(--ease);
+}
+.sp-folder-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms;
+}
+.sp-folder-menu-item:hover { background: var(--bg-subtle); color: var(--text); }
+.sp-folder-menu-item.danger { color: var(--danger); }
+.sp-folder-menu-item.danger:hover { background: var(--danger-soft); }
+
+.sp-folder-rename-input {
+  padding: 2px 7px;
+  border-radius: var(--r-full);
+  border: 1.5px solid var(--accent);
+  background: var(--bg-input);
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--text);
+  outline: none;
+  width: 100px;
+}
+
+/* ─── Move to folder picker ──────────────────────────────────── */
+.sp-move-picker {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 0;
+  min-width: 150px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 300;
+  overflow: hidden;
+  animation: fadeIn 150ms var(--ease);
+}
+.sp-move-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms;
+}
+.sp-move-item:hover { background: var(--bg-subtle); color: var(--text); }
+.sp-move-item.active { color: var(--accent); font-weight: 600; }
+.sp-move-item.new { color: var(--accent); }
+.sp-move-divider { height: 1px; background: var(--border); margin: 2px 0; }
