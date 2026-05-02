@@ -248,6 +248,10 @@ export default function SidePanelApp() {
   // Copy to clipboard feedback
   const [copied, setCopied] = useState(false);
 
+  // ── Daily Digest ──────────────────────────────────────────────
+  const [digestEnabled, setDigestEnabled] = useState(false);
+  const [digestTime, setDigestTime] = useState('09:00');
+
   // ── Command palette ───────────────────────────────────────────
   const [showCmdPalette, setShowCmdPalette] = useState(false);
   const [cmdQuery, setCmdQuery]             = useState('');
@@ -620,6 +624,15 @@ export default function SidePanelApp() {
       setMdState(storageData.markdownEnabled ?? false);
       setThemeState((storageData as unknown as { theme: typeof theme }).theme ?? 'system');
 
+      // Load daily digest settings
+      if (cr?.storage?.local?.get) {
+        const digestResult = await new Promise<Record<string, unknown>>((res) =>
+          cr.storage.local.get('tn_digest', res)
+        );
+        const d = digestResult['tn_digest'] as { enabled?: boolean; time?: string } | undefined;
+        if (d) { setDigestEnabled(d.enabled ?? false); setDigestTime(d.time ?? '09:00'); }
+      }
+
       await refreshAllNotes();
 
       cr.tabs.query({ active: true, currentWindow: true }, async (tabs: { url?: string }[]) => {
@@ -833,6 +846,11 @@ ${parseMarkdown(content)}
       setContextNotes(notes); await refreshAllNotes();
       setShowEncPrompt(null); setEncPassword(''); setEncError('');
     } catch { setEncError('Wrong password.'); }
+  };
+
+  // ── Daily Digest save ────────────────────────────────────────
+  const saveDigest = (enabled: boolean, time: string) => {
+    cr?.runtime?.sendMessage({ type: 'SET_DIGEST', enabled, time });
   };
 
   // ── Wiki link autocomplete ───────────────────────────────────
@@ -2240,6 +2258,40 @@ ${parseMarkdown(content)}
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="sp-settings-section">
+              <div className="sp-settings-label">Daily Digest</div>
+              <div className="sp-settings-row">
+                <div className="sp-settings-row-info">
+                  <div className="sp-settings-row-title">Morning Notification</div>
+                  <div className="sp-settings-row-desc">Daily summary of your note activity</div>
+                </div>
+                <button
+                  className={`sp-toggle ${digestEnabled ? 'on' : 'off'}`}
+                  onClick={() => { const next = !digestEnabled; setDigestEnabled(next); saveDigest(next, digestTime); }}
+                >
+                  <div className="sp-toggle-knob" />
+                </button>
+              </div>
+              {digestEnabled && (
+                <div className="sp-digest-time-row">
+                  <span className="sp-digest-time-label">Send digest at</span>
+                  <input
+                    type="time"
+                    className="sp-digest-time-input"
+                    value={digestTime}
+                    onChange={(e) => { setDigestTime(e.target.value); saveDigest(digestEnabled, e.target.value); }}
+                  />
+                </div>
+              )}
+              {digestEnabled && (
+                <div className="sp-digest-preview">
+                  <span className="sp-digest-preview-icon">📓</span>
+                  <span>Every day at <strong>{digestTime}</strong> you'll get a notification like:<br />
+                  <em>"3 notes updated in the last 24h — 47 total"</em></span>
+                </div>
+              )}
             </div>
 
             <div className="sp-settings-section">
