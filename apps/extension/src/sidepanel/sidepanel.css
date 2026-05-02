@@ -729,6 +729,41 @@ body {
 .sp-card-scope-icon { font-size: 11px; }
 .sp-card-scope { font-size: 10px; color: var(--text-subtle); text-transform: capitalize; }
 .sp-card-time { margin-left: auto; font-size: 10px; color: var(--text-subtle); flex-shrink: 0; }
+/* ─── Group headers (scope categories) ──────────────────────── */
+.sp-scope-group { border-bottom: 1px solid var(--border); }
+.sp-scope-group:last-child { border-bottom: none; }
+.sp-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--bg-subtle);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  color: var(--text-muted);
+  text-align: left;
+  transition: background 120ms;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.sp-group-header:hover { background: var(--bg-muted); }
+.sp-group-chevron { font-size: 9px; color: var(--text-subtle); width: 10px; flex-shrink: 0; }
+.sp-group-icon { font-size: 12px; }
+.sp-group-label { font-size: 11px; font-weight: 600; color: var(--accent); flex: 1; text-transform: capitalize; }
+.sp-group-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 1px 6px;
+}
+
+/* ─── Card delete button — always visible, orange ────────────── */
 .sp-card-delete {
   margin-left: 6px;
   flex-shrink: 0;
@@ -737,25 +772,25 @@ body {
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
-  color: var(--text-subtle);
+  color: var(--accent);
   border-radius: var(--r-sm);
   padding: 1px 4px;
-  opacity: 0;
-  transition: opacity 120ms, background 120ms, color 120ms;
+  opacity: 0.7;
+  transition: opacity 120ms, background 120ms, transform 120ms;
   font-family: var(--font);
 }
-.sp-note-card:hover .sp-card-delete { opacity: 1; }
-.sp-card-delete:hover { background: var(--bg-muted); color: var(--danger, #e55); }
+.sp-card-delete:hover { opacity: 1; background: var(--bg-muted); transform: scale(1.15); }
 .sp-card-delete.confirming {
   opacity: 1;
-  background: var(--danger, #e55);
+  background: var(--danger);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
   border-radius: var(--r-full);
+  transform: none;
 }
-.sp-note-card.delete-confirm { background: color-mix(in srgb, var(--danger, #e55) 8%, transparent); }
+.sp-note-card.delete-confirm { background: color-mix(in srgb, var(--danger) 8%, transparent); }
 
 .sp-card-title {
   font-size: 12px;

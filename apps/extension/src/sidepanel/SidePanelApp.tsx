@@ -94,6 +94,11 @@ export default function SidePanelApp() {
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
+  // Collapsible scope groups in All Notes
+  const [collapsedScopes, setCollapsedScopes] = useState<Set<string>>(new Set());
+  const toggleScope = (sc: string) =>
+    setCollapsedScopes((prev) => { const n = new Set(prev); n.has(sc) ? n.delete(sc) : n.add(sc); return n; });
+
   // Services
   const adapter = useRef(new ChromeStorageAdapter());
   const noteSvc = useRef(new NotesService(adapter.current));
@@ -741,70 +746,93 @@ export default function SidePanelApp() {
                   </div>
                 </div>
               ) : (
-                filteredNotes.map((n) => {
-                  const scopeOpt = SCOPE_OPTIONS.find((s) => s.value === n.scope);
-                  const isSelected = selectedId === n.id;
-                  const isBulkSelected = bulkSelectedIds.has(n.id);
-                  return (
-                    <div
-                      key={n.id}
-                      className={`sp-note-card${isSelected ? ' selected' : ''}${deleteCardConfirmId === n.id ? ' delete-confirm' : ''}${selectMode && isBulkSelected ? ' bulk-selected' : ''}${selectMode ? ' select-mode' : ''}`}
-                      onClick={(e) => {
-                        if (selectMode) {
-                          setBulkDeleteConfirm(false);
-                          setBulkSelectedIds((prev) => {
-                            const next = new Set(prev);
-                            next.has(n.id) ? next.delete(n.id) : next.add(n.id);
-                            return next;
-                          });
-                          return;
-                        }
-                        if ((e.target as HTMLElement).closest('.sp-card-delete')) return;
-                        if (deleteCardConfirmId === n.id) { setDeleteCardConfirmId(null); return; }
-                        setDeleteCardConfirmId(null);
-                        setSelectedId(isSelected ? null : n.id);
-                        setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
-                        setContent(n.content); setTitle(n.title ?? ''); setTags(n.tags.join(', '));
-                        setScope(n.scope); scopeRef.current = n.scope;
-                        setView('note'); setPreview(false); setConfirmDelete(false);
-                      }}
-                    >
-                      {selectMode && (
-                        <span className={`sp-card-checkbox${isBulkSelected ? ' checked' : ''}`}>
-                          {isBulkSelected ? '✓' : ''}
-                        </span>
-                      )}
-                      <div className="sp-card-top">
-                        <span className="sp-card-scope-icon">{scopeOpt?.icon}</span>
-                        <span className="sp-card-scope">{n.scope}</span>
-                        <span className="sp-card-time">{formatRelativeTime(n.updatedAt)}</span>
-                        {!selectMode && (
-                          <button
-                            className={`sp-card-delete${deleteCardConfirmId === n.id ? ' confirming' : ''}`}
-                            title={deleteCardConfirmId === n.id ? 'Click to confirm delete' : 'Delete note'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (deleteCardConfirmId === n.id) {
-                                deleteCardNote(n.id);
-                              } else {
-                                setDeleteCardConfirmId(n.id);
-                              }
-                            }}
-                          >
-                            {deleteCardConfirmId === n.id ? 'Delete?' : '×'}
-                          </button>
-                        )}
+                // ── Group by scope ──────────────────────────────
+                SCOPE_OPTIONS
+                  .map((scopeOpt) => ({
+                    scopeOpt,
+                    notes: filteredNotes.filter((n) => n.scope === scopeOpt.value),
+                  }))
+                  .filter(({ notes }) => notes.length > 0)
+                  .map(({ scopeOpt, notes }) => {
+                    const isCollapsed = collapsedScopes.has(scopeOpt.value);
+                    return (
+                      <div key={scopeOpt.value} className="sp-scope-group">
+                        {/* Group header */}
+                        <button
+                          className="sp-group-header"
+                          onClick={() => toggleScope(scopeOpt.value)}
+                        >
+                          <span className="sp-group-chevron">{isCollapsed ? '▸' : '▾'}</span>
+                          <span className="sp-group-icon">{scopeOpt.icon}</span>
+                          <span className="sp-group-label">{scopeOpt.label}</span>
+                          <span className="sp-group-count">{notes.length}</span>
+                        </button>
+
+                        {/* Notes in this group */}
+                        {!isCollapsed && notes.map((n) => {
+                          const isSelected = selectedId === n.id;
+                          const isBulkSelected = bulkSelectedIds.has(n.id);
+                          return (
+                            <div
+                              key={n.id}
+                              className={`sp-note-card${isSelected ? ' selected' : ''}${deleteCardConfirmId === n.id ? ' delete-confirm' : ''}${selectMode && isBulkSelected ? ' bulk-selected' : ''}${selectMode ? ' select-mode' : ''}`}
+                              onClick={(e) => {
+                                if (selectMode) {
+                                  setBulkDeleteConfirm(false);
+                                  setBulkSelectedIds((prev) => {
+                                    const next = new Set(prev);
+                                    next.has(n.id) ? next.delete(n.id) : next.add(n.id);
+                                    return next;
+                                  });
+                                  return;
+                                }
+                                if ((e.target as HTMLElement).closest('.sp-card-delete')) return;
+                                if (deleteCardConfirmId === n.id) { setDeleteCardConfirmId(null); return; }
+                                setDeleteCardConfirmId(null);
+                                setSelectedId(isSelected ? null : n.id);
+                                setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
+                                setContent(n.content); setTitle(n.title ?? ''); setTags(n.tags.join(', '));
+                                setScope(n.scope); scopeRef.current = n.scope;
+                                setView('note'); setPreview(false); setConfirmDelete(false);
+                              }}
+                            >
+                              {selectMode && (
+                                <span className={`sp-card-checkbox${isBulkSelected ? ' checked' : ''}`}>
+                                  {isBulkSelected ? '✓' : ''}
+                                </span>
+                              )}
+                              <div className="sp-card-top">
+                                <span className="sp-card-time">{formatRelativeTime(n.updatedAt)}</span>
+                                {!selectMode && (
+                                  <button
+                                    className={`sp-card-delete${deleteCardConfirmId === n.id ? ' confirming' : ''}`}
+                                    title={deleteCardConfirmId === n.id ? 'Click to confirm delete' : 'Delete note'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (deleteCardConfirmId === n.id) {
+                                        deleteCardNote(n.id);
+                                      } else {
+                                        setDeleteCardConfirmId(n.id);
+                                      }
+                                    }}
+                                  >
+                                    {deleteCardConfirmId === n.id ? 'Delete?' : '🗑'}
+                                  </button>
+                                )}
+                              </div>
+                              {n.title && <div className="sp-card-title">{n.title}</div>}
+                              {n.content && <div className="sp-card-excerpt">{n.content}</div>}
+                              {n.tags.length > 0 && (
+                                <div className="sp-card-tags">
+                                  {n.tags.slice(0, 4).map((t) => <span key={t} className="sp-card-tag">#{t}</span>)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                      {n.title && <div className="sp-card-title">{n.title}</div>}
-                      {n.content && <div className="sp-card-excerpt">{n.content}</div>}
-                      {n.tags.length > 0 && (
-                        <div className="sp-card-tags">
-                          {n.tags.slice(0, 4).map((t) => <span key={t} className="sp-card-tag">#{t}</span>)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                    );
+                  })
               )}
             </div>
 
