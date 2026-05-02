@@ -74,6 +74,7 @@ export default function SidePanelApp() {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
   const [saved, setSaved] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [dataFeedback, setDataFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
