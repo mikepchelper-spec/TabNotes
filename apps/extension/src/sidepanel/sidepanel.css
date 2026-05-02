@@ -1773,3 +1773,189 @@ body {
 .sp-move-item.active { color: var(--accent); font-weight: 600; }
 .sp-move-item.new { color: var(--accent); }
 .sp-move-divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+/* ─── Wiki links ──────────────────────────────────────────────── */
+.tn-wikilink {
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0 2px;
+  transition: background 100ms;
+}
+.tn-wikilink:hover { background: var(--accent-soft, #edf1ff); }
+.tn-wikilink u { text-decoration: none; border-bottom: 1px dashed var(--accent); }
+
+/* ─── Wiki autocomplete dropdown ─────────────────────────────── */
+.tn-wiki-suggest {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 500;
+  max-height: 180px;
+  overflow-y: auto;
+  animation: fadeIn 120ms var(--ease);
+}
+.tn-wiki-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 80ms;
+}
+.tn-wiki-item:hover { background: var(--bg-subtle); color: var(--accent); }
+.tn-wiki-empty {
+  display: block;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+/* ─── Typewriter mode ────────────────────────────────────────── */
+.tn-typewriter { scroll-behavior: smooth; }
+
+/* ─── Note graph view ────────────────────────────────────────── */
+.sp-graph-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 0 8px;
+}
+.sp-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sp-graph-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: .01em;
+}
+.sp-graph-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sp-graph-legend-item {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sp-graph-legend-sep { flex: 1; }
+.sp-graph-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 0;
+  font-size: 11px;
+  color: var(--text-subtle);
+  flex-shrink: 0;
+}
+
+/* ─── Encryption overlay ─────────────────────────────────────── */
+.tn-enc-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  animation: fadeIn 120ms var(--ease);
+}
+.tn-enc-dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg, 12px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.25);
+  padding: 24px 22px 20px;
+  width: 290px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tn-enc-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.tn-enc-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+.tn-enc-input {
+  padding: 9px 11px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 150ms;
+  width: 100%;
+  box-sizing: border-box;
+}
+.tn-enc-input:focus { border-color: var(--accent); }
+.tn-enc-error {
+  font-size: 11px;
+  color: #e53e3e;
+  margin: 0;
+  font-weight: 500;
+}
+.tn-enc-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.tn-enc-cancel {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 100ms;
+}
+.tn-enc-cancel:hover { background: var(--bg-subtle); }
+.tn-enc-confirm {
+  padding: 7px 16px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 100ms;
+}
+.tn-enc-confirm:disabled { opacity: .45; cursor: not-allowed; }
+.tn-enc-confirm:not(:disabled):hover { opacity: .88; }
