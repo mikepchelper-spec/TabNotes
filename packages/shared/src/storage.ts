@@ -28,6 +28,7 @@ function migrateNote(raw: Partial<Note>): Note {
     title: raw.title,
     content: raw.content ?? '',
     tags: raw.tags ?? [],
+    folder: raw.folder,
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? Date.now(),
   };
@@ -126,7 +127,7 @@ export class NotesService {
 
   async createNote(params: {
     scope: NoteScope; url: string;
-    workspaceId?: string | null; content?: string; title?: string; tags?: string[];
+    workspaceId?: string | null; content?: string; title?: string; tags?: string[]; folder?: string;
   }): Promise<Note> {
     const data = await this.adapter.get();
     const now = Date.now();
@@ -138,6 +139,7 @@ export class NotesService {
       title: params.title,
       content: params.content ?? '',
       tags: params.tags ?? [],
+      folder: params.folder,
       createdAt: now,
       updatedAt: now,
     };
@@ -145,7 +147,7 @@ export class NotesService {
     return note;
   }
 
-  async updateNote(id: string, updates: Partial<Pick<Note, 'content' | 'title' | 'tags'>>): Promise<Note | null> {
+  async updateNote(id: string, updates: Partial<Pick<Note, 'content' | 'title' | 'tags' | 'folder'>>): Promise<Note | null> {
     const data = await this.adapter.get();
     const note = data.notes[id];
     if (!note) return null;
