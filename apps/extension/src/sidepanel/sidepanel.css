@@ -1095,7 +1095,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin: 4px 14px 14px;
+  margin-top: 8px;
   padding: 10px 14px;
   border-radius: var(--r-lg);
   border: 1.5px solid var(--border);
