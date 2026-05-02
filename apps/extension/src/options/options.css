@@ -1,32 +1,32 @@
 :root {
-  --color-bg: #002147;
-  --color-bg-subtle: #002c5c;
-  --color-bg-muted: #003270;
-  --color-border: #1a4070;
-  --color-border-strong: #2a5a90;
-  --color-text: #ffffff;
-  --color-text-muted: #a0c4e0;
-  --color-text-subtle: #5c8aaa;
+  --color-bg: #fafaf9;
+  --color-bg-subtle: #f4f2ef;
+  --color-bg-muted: #ede9e3;
+  --color-border: #e5e1da;
+  --color-border-strong: #cec9c0;
+  --color-text: #1a1916;
+  --color-text-muted: #6b6560;
+  --color-text-subtle: #a09890;
   --color-accent: #ff6200;
-  --color-accent-subtle: #1a1f4a;
-  --color-success: #22c55e;
-  --color-success-subtle: #0a2318;
-  --color-danger: #ff6b6b;
-  --color-danger-subtle: #2a0f0f;
+  --color-accent-subtle: #fff3ec;
+  --color-success: #16a34a;
+  --color-success-subtle: #f0fdf4;
+  --color-danger: #dc2626;
+  --color-danger-subtle: #fef2f2;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 [data-theme="dark"] {
-  --color-bg: #001230;
-  --color-bg-subtle: #001840;
-  --color-bg-muted: #001d4d;
-  --color-border: #0f3060;
-  --color-border-strong: #1a4575;
-  --color-text: #ffffff;
-  --color-text-muted: #7aafd0;
-  --color-text-subtle: #3a6888;
+  --color-bg: #0f0f0e;
+  --color-bg-subtle: #1c1c1a;
+  --color-bg-muted: #242420;
+  --color-border: #2a2926;
+  --color-border-strong: #3a3832;
+  --color-text: #f0ede8;
+  --color-text-muted: #9a958e;
+  --color-text-subtle: #6a6560;
   --color-accent: #ff6200;
-  --color-accent-subtle: #120f35;
+  --color-accent-subtle: #1e1000;
   --color-success: #22c55e;
   --color-success-subtle: #071a10;
   --color-danger: #ff8080;
