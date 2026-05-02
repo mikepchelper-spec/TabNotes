@@ -37,6 +37,13 @@
         "mac": "Alt+N"
       },
       "description": "Open TabNotes side panel"
+    },
+    "quick-capture": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+N",
+        "mac": "Command+Shift+N"
+      },
+      "description": "Quick capture: open TabNotes and create a new note instantly"
     }
   },
   "permissions": [
