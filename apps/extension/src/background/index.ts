@@ -117,7 +117,21 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
 // ── Message handler ───────────────────────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  // CAPTURE_TAB: take a screenshot of the active tab
+  if (msg.type === 'CAPTURE_TAB') {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      if (!tabs[0]?.windowId) { sendResponse({ error: 'No active tab' }); return; }
+      try {
+        const dataUrl = await chrome.tabs.captureVisibleTab(tabs[0].windowId, { format: 'jpeg', quality: 40 });
+        sendResponse({ dataUrl });
+      } catch (e) {
+        sendResponse({ error: String(e) });
+      }
+    });
+    return true; // keep message channel open for async sendResponse
+  }
+
   // SET_REMINDER: schedule a chrome.alarms reminder for a note
   if (msg.type === 'SET_REMINDER') {
     const alarmName = 'tn_reminder_' + msg.noteId;
