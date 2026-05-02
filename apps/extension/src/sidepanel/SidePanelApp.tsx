@@ -22,6 +22,12 @@ const SCOPE_OPTIONS: { value: NoteScope; label: string; icon: string; desc: stri
   { value: 'global',    label: 'Global',    icon: '🌍', desc: 'Everywhere' },
 ];
 
+function readingTime(text: string): string {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words < 50) return '';
+  return `~${Math.ceil(words / 200)} min`;
+}
+
 function parseMarkdown(text: string): string {
   return text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -101,6 +107,16 @@ export default function SidePanelApp() {
   const toggleScope = (sc: string) =>
     setCollapsedScopes((prev) => { const n = new Set(prev); n.has(sc) ? n.delete(sc) : n.add(sc); return n; });
 
+  // Workspace quick-switcher dropdown
+  const [wsDropdown, setWsDropdown] = useState(false);
+  const wsDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Tag filter in All Notes
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  // Copy to clipboard feedback
+  const [copied, setCopied] = useState(false);
+
   // Services
   const adapter = useRef(new ChromeStorageAdapter());
   const noteSvc = useRef(new NotesService(adapter.current));
@@ -117,6 +133,16 @@ export default function SidePanelApp() {
   useEffect(() => { scopeRef.current = scope; }, [scope]);
   useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
   useEffect(() => { wsIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
+
+  // ── Click outside → close workspace dropdown ─────────────────
+  useEffect(() => {
+    if (!wsDropdown) return;
+    const handle = (e: MouseEvent) => {
+      if (!wsDropdownRef.current?.contains(e.target as Node)) setWsDropdown(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [wsDropdown]);
 
   // ── Theme ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -422,6 +448,14 @@ export default function SidePanelApp() {
     await adapter.current.set({ defaultScope: s });
   };
 
+  // ── Copy note to clipboard ────────────────────────────────────
+  const copyNote = async () => {
+    const text = [title, content].filter(Boolean).join('\n\n');
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // ── Export / Import ───────────────────────────────────────────
   const showFeedback = (type: 'success' | 'error', msg: string) => {
     setDataFeedback({ type, msg });
@@ -482,7 +516,10 @@ export default function SidePanelApp() {
     'Global';
 
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
-  const filteredNotes = searchNotes(allNotes, searchQ);
+  const allTags = [...new Set(allNotes.flatMap((n) => n.tags))].sort();
+  const filteredNotes = searchNotes(allNotes, searchQ).filter((n) =>
+    tagFilter ? n.tags.includes(tagFilter) : true
+  );
   const isRestrictedUrl = !currentUrl
     || currentUrl.startsWith('chrome://')
     || currentUrl.startsWith('chrome-extension://');
@@ -505,11 +542,52 @@ export default function SidePanelApp() {
           <div className="sp-logo-mark">T</div>
           <span className="sp-logo-text">TabNotes</span>
         </div>
-        <div className="sp-workspace-pill" onClick={() => setView('settings')}>
-          <div className="sp-workspace-dot" style={{ background: activeWs ? 'var(--accent)' : 'var(--text-subtle)' }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 90 }}>
-            {activeWs ? activeWs.name : 'No Workspace'}
-          </span>
+        <div className="sp-ws-dropdown-wrap" ref={wsDropdownRef}>
+          <div
+            className={`sp-workspace-pill${wsDropdown ? ' open' : ''}`}
+            onClick={() => setWsDropdown(!wsDropdown)}
+          >
+            <div className="sp-workspace-dot" style={{ background: activeWs ? 'var(--accent)' : 'var(--text-subtle)' }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 80 }}>
+              {activeWs ? activeWs.name : 'No Workspace'}
+            </span>
+            <span className="sp-ws-chevron">{wsDropdown ? '▴' : '▾'}</span>
+          </div>
+          {wsDropdown && (
+            <div className="sp-ws-dropdown">
+              <div
+                className={`sp-ws-option${activeWorkspaceId === null ? ' active' : ''}`}
+                onClick={async () => {
+                  await wsSvc.current.setActive(null);
+                  setActiveWorkspaceId(null); wsIdRef.current = null;
+                  setWsDropdown(false);
+                  await loadContextNotes(currentUrlRef.current, scopeRef.current, null);
+                }}
+              >
+                <span>🌍</span> No Workspace
+                {activeWorkspaceId === null && <span className="sp-ws-check">✓</span>}
+              </div>
+              {workspaces.map((ws) => (
+                <div
+                  key={ws.id}
+                  className={`sp-ws-option${activeWorkspaceId === ws.id ? ' active' : ''}`}
+                  onClick={async () => {
+                    await wsSvc.current.setActive(ws.id);
+                    setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id;
+                    setWsDropdown(false);
+                    await loadContextNotes(currentUrlRef.current, scopeRef.current, ws.id);
+                  }}
+                >
+                  <span>⊞</span> {ws.name}
+                  {activeWorkspaceId === ws.id && <span className="sp-ws-check">✓</span>}
+                </div>
+              ))}
+              <div className="sp-ws-divider" />
+              <div className="sp-ws-option manage" onClick={() => { setWsDropdown(false); setView('settings'); }}>
+                ⚙ Manage workspaces
+              </div>
+            </div>
+          )}
         </div>
         <div className="sp-header-actions">
           {tabLoading && <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />}
@@ -683,6 +761,12 @@ export default function SidePanelApp() {
                   <span className="sp-note-meta-text">{content.split(/\s+/).filter(Boolean).length}w</span>
                   <span className="sp-note-meta-sep">·</span>
                   <span className="sp-note-meta-text">{content.length}ch</span>
+                  {readingTime(content) && (
+                    <>
+                      <span className="sp-note-meta-sep">·</span>
+                      <span className="sp-note-meta-text">{readingTime(content)}</span>
+                    </>
+                  )}
                   {activeNote && (
                     <>
                       <span className="sp-note-meta-sep">·</span>
@@ -690,6 +774,15 @@ export default function SidePanelApp() {
                     </>
                   )}
                   <span className="sp-note-meta-spacer" />
+                  {content && (
+                    <button
+                      className={`sp-meta-toggle${copied ? ' active' : ''}`}
+                      onClick={copyNote}
+                      title="Copy note to clipboard"
+                    >
+                      {copied ? '✓ Copied' : '⎘ Copy'}
+                    </button>
+                  )}
                   {markdownEnabled && (
                     <button
                       className={`sp-meta-toggle${preview ? ' active' : ''}`}
@@ -738,13 +831,29 @@ export default function SidePanelApp() {
               </button>
             </div>
 
+            {/* Tag filter chips */}
+            {allTags.length > 0 && (
+              <div className="sp-tag-chips">
+                {tagFilter && (
+                  <button className="sp-tag-chip clear" onClick={() => setTagFilter(null)}>✕ Clear</button>
+                )}
+                {allTags.map((t) => (
+                  <button
+                    key={t}
+                    className={`sp-tag-chip${tagFilter === t ? ' active' : ''}`}
+                    onClick={() => setTagFilter(tagFilter === t ? null : t)}
+                  >#{t}</button>
+                ))}
+              </div>
+            )}
+
             <div className="sp-notes-list">
               {filteredNotes.length === 0 ? (
                 <div className="sp-empty-state">
                   <div className="sp-empty-icon">✎</div>
-                  <div className="sp-empty-title">{searchQ ? 'No results' : 'No notes yet'}</div>
+                  <div className="sp-empty-title">{searchQ || tagFilter ? 'No results' : 'No notes yet'}</div>
                   <div className="sp-empty-desc">
-                    {searchQ ? `Nothing matched "${searchQ}"` : 'Switch to Note tab and start writing.'}
+                    {searchQ ? `Nothing matched "${searchQ}"` : tagFilter ? `No notes tagged #${tagFilter}` : 'Switch to Note tab and start writing.'}
                   </div>
                 </div>
               ) : (
@@ -766,11 +875,16 @@ export default function SidePanelApp() {
                           <span className="sp-group-chevron">{isCollapsed ? '▸' : '▾'}</span>
                           <span className="sp-group-icon">{scopeOpt.icon}</span>
                           <span className="sp-group-label">{scopeOpt.label}</span>
-                          <span className="sp-group-count">{notes.length}</span>
+                          <span className={`sp-group-count${notes.length === 0 ? ' empty' : ''}`}>{notes.length}</span>
                         </button>
 
+                        {/* Empty state when group is open but has no notes */}
+                        {!isCollapsed && notes.length === 0 && (
+                          <div className="sp-group-empty">No {scopeOpt.label.toLowerCase()} notes yet</div>
+                        )}
+
                         {/* Notes in this group */}
-                        {!isCollapsed && notes.map((n) => {
+                        {!isCollapsed && notes.length > 0 && notes.map((n) => {
                           const isSelected = selectedId === n.id;
                           const isBulkSelected = bulkSelectedIds.has(n.id);
                           return (
@@ -828,6 +942,20 @@ export default function SidePanelApp() {
                                   {n.tags.slice(0, 4).map((t) => <span key={t} className="sp-card-tag">#{t}</span>)}
                                 </div>
                               )}
+                              <div className="sp-card-scope-ctx">
+                                <span className="sp-card-scope-icon">{SCOPE_OPTIONS.find((s) => s.value === n.scope)?.icon}</span>
+                                <span className="sp-card-scope-key">{n.scopeKey || n.scope}</span>
+                                {n.scope === 'url' && n.scopeKey && (
+                                  <a
+                                    href={n.scopeKey}
+                                    target="_blank"
+                                    rel="noopener"
+                                    className="sp-card-open-url"
+                                    onClick={(e) => e.stopPropagation()}
+                                    title="Open this URL"
+                                  >↗</a>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
