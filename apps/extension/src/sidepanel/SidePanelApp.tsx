@@ -1288,9 +1288,13 @@ ${parseMarkdown(content)}
 
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
   const allTags = [...new Set(allNotes.flatMap((n) => n.tags))].sort();
-  const filteredNotes = searchNotes(allNotes, searchQ).filter((n) =>
-    tagFilter ? n.tags.includes(tagFilter) : true
-  );
+  const filteredNotes = searchNotes(allNotes, searchQ)
+    .filter((n) => tagFilter ? n.tags.includes(tagFilter) : true)
+    .sort((a, b) => {
+      const aPin = pinnedNotes.has(a.id) ? 0 : 1;
+      const bPin = pinnedNotes.has(b.id) ? 0 : 1;
+      return aPin - bPin || b.updatedAt - a.updatedAt;
+    });
   const isRestrictedUrl = !currentUrl
     || currentUrl.startsWith('chrome://')
     || currentUrl.startsWith('chrome-extension://');
@@ -2137,6 +2141,9 @@ ${parseMarkdown(content)}
                                 </span>
                               )}
                               <div className="sp-card-top">
+                                {pinnedNotes.has(n.id) && (
+                                  <span className="sp-card-pin" title="Pinned">📌</span>
+                                )}
                                 <span className="sp-card-time">{formatRelativeTime(n.updatedAt)}</span>
                                 {!selectMode && (
                                   <button
