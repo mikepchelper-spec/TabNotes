@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TabNotes",
-  "version": "1.9.1",
+  "version": "2.0.0",
   "description": "Contextual notes per tab, domain, or workspace. Multiple notes per page. Local-first, no account needed.",
   "icons": {
     "16":  "icons/icon16.png",
@@ -23,6 +23,13 @@
     "service_worker": "background/index.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "commands": {
     "toggle-side-panel": {
       "suggested_key": {
@@ -36,7 +43,9 @@
     "storage",
     "tabs",
     "activeTab",
-    "sidePanel"
+    "sidePanel",
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "<all_urls>"
