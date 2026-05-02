@@ -1160,6 +1160,18 @@ export default function SidePanelApp() {
               )}
             </div>
 
+            <div className="sp-settings-section sp-coffee-section">
+              <div className="sp-settings-label">Support</div>
+              <a
+                href="https://www.paypal.com/paypalme/atlaspcsupport"
+                target="_blank"
+                rel="noopener"
+                className="sp-coffee-btn"
+              >
+                ☕ Buy me a coffee
+              </a>
+            </div>
+
             <div className="sp-pro-card">
               <div className="sp-pro-title">✦ TabNotes Pro — Coming Soon</div>
               <div className="sp-pro-desc">Sync across devices, web dashboard access, note history and premium themes.</div>
@@ -1167,15 +1179,6 @@ export default function SidePanelApp() {
                 View on GitHub →
               </a>
             </div>
-
-            <a
-              href="https://www.paypal.com/paypalme/atlaspcsupport"
-              target="_blank"
-              rel="noopener"
-              className="sp-coffee-btn"
-            >
-              ☕ Buy me a coffee
-            </a>
           </div>
         )}
       </div>
