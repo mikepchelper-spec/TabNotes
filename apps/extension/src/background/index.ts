@@ -72,11 +72,65 @@ async function updateBadgeForActiveTab(): Promise<void> {
   if (tab?.id && tab.url) await updateBadge(tab.id, tab.url);
 }
 
+// ── Daily Digest ──────────────────────────────────────────────────────────────
+
+interface DigestSettings { enabled?: boolean; time?: string; }
+
+async function scheduleDigest(): Promise<void> {
+  chrome.alarms.clear('tn_daily_digest');
+  const result = await chrome.storage.local.get('tn_digest');
+  const settings = (result['tn_digest'] as DigestSettings | undefined) ?? {};
+  if (!settings.enabled) return;
+
+  const [h, m] = (settings.time ?? '09:00').split(':').map(Number);
+  const now = new Date();
+  const next = new Date();
+  next.setHours(h, m, 0, 0);
+  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+
+  chrome.alarms.create('tn_daily_digest', {
+    when: next.getTime(),
+    periodInMinutes: 24 * 60,
+  });
+}
+
+async function fireDigest(): Promise<void> {
+  const result = await chrome.storage.local.get(['tabnotes_data', 'tn_digest']);
+  const settings = (result['tn_digest'] as DigestSettings | undefined) ?? {};
+  if (!settings.enabled) return;
+
+  const data = result['tabnotes_data'] as {
+    notes?: Record<string, { updatedAt?: number; createdAt?: number; title?: string; content?: string }>;
+  } | undefined;
+
+  const notes = Object.values(data?.notes ?? {});
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const recent = notes.filter(n => (n.updatedAt ?? 0) > cutoff || (n.createdAt ?? 0) > cutoff);
+  const total = notes.length;
+
+  const message = recent.length > 0
+    ? `${recent.length} note${recent.length !== 1 ? 's' : ''} updated in the last 24h — ${total} total`
+    : `No changes yesterday — ${total} note${total !== 1 ? 's' : ''} in your collection`;
+
+  chrome.notifications.create('tn_digest_' + Date.now(), {
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title: '📓 TabNotes Daily Digest',
+    message,
+    priority: 1,
+  });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setOptions({ enabled: true });
   updateBadgeForActiveTab();
+  scheduleDigest();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  scheduleDigest();
 });
 
 // ── Open side panel on icon click ─────────────────────────────────────────────
@@ -129,7 +183,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ error: String(e) });
       }
     });
-    return true; // keep message channel open for async sendResponse
+    return true;
+  }
+
+  // SET_DIGEST: save digest settings and reschedule alarm
+  if (msg.type === 'SET_DIGEST') {
+    (async () => {
+      await chrome.storage.local.set({ tn_digest: { enabled: msg.enabled, time: msg.time } });
+      await scheduleDigest();
+      sendResponse({ ok: true });
+    })();
+    return true;
   }
 
   // SET_REMINDER: schedule a chrome.alarms reminder for a note
@@ -144,16 +208,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'CLEAR_REMINDER') {
     chrome.alarms.clear('tn_reminder_' + msg.noteId);
   }
-  // CLIP_TEXT: forwarded automatically to any open extension pages (sidepanel listens directly)
 });
 
-// ── Reminder alarms ───────────────────────────────────────────────────────────
+// ── Alarm handler ─────────────────────────────────────────────────────────────
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  // Daily digest
+  if (alarm.name === 'tn_daily_digest') {
+    await fireDigest();
+    return;
+  }
+
   if (!alarm.name.startsWith('tn_reminder_')) return;
   const noteId = alarm.name.replace('tn_reminder_', '');
 
-  // Read note from storage to get title
   try {
     const result = await chrome.storage.local.get('tabnotes_data');
     const data = result['tabnotes_data'] as {
@@ -170,7 +238,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       priority: 2,
     });
 
-    // Clear the reminderAt from the note so it doesn't re-trigger
     const notes = { ...(data?.notes ?? {}) };
     if (notes[noteId]) {
       notes[noteId] = { ...notes[noteId], reminderAt: undefined } as typeof notes[string];
@@ -184,7 +251,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // ── Notification click → open sidepanel ───────────────────────────────────────
 
 chrome.notifications.onClicked.addListener(async (notifId) => {
-  if (!notifId.startsWith('tn_notif_')) return;
+  if (!notifId.startsWith('tn_notif_') && !notifId.startsWith('tn_digest_')) return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) chrome.sidePanel.open({ tabId: tab.id });
   chrome.notifications.clear(notifId);
