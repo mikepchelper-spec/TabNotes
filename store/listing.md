@@ -4,31 +4,33 @@
 TabNotes
 
 ## Short description (≤132 chars)
-Contextual notes per tab, domain, or workspace. Multiple notes per page. Local-first, no account needed.
+Contextual notes per tab, domain, or workspace. Local-first, no account needed. Notes that know where you are.
 
 ## Detailed description
 
 **TabNotes — Notes that know where you are.**
 
-Take notes that are automatically linked to the page you're on — no copy-pasting URLs, no manual filing. TabNotes brings contextual awareness to your note-taking, right inside Chrome's side panel.
+Stop losing research, half-written ideas, and page-specific reminders. TabNotes automatically links your notes to the page you're on — no copy-pasting URLs, no manual filing, no switching apps.
+
+Open the side panel and your notes for that exact URL, domain, or project are already there.
 
 ---
 
 **Four note scopes, one click away:**
 
-🔗 **URL notes** — Pin a note to a specific page. Perfect for research, code review, or reading articles.
+🔗 **URL notes** — Pin a note to a specific page. Perfect for research, code review, reading articles, or filling out forms.
 
-🌐 **Domain notes** — One shared note for an entire site. Ideal for documentation, project sites, or any tool you use regularly.
+🌐 **Domain notes** — One shared note for an entire site. Ideal for documentation, wikis, tools you use every day.
 
-⊞ **Workspace notes** — Group notes into projects. Switch contexts instantly without losing your place.
+⊞ **Workspace notes** — Group notes by project. Switch contexts instantly without losing your place.
 
-🌍 **Global notes** — A scratchpad always available everywhere, regardless of what you're browsing.
+🌍 **Global notes** — A scratchpad always available everywhere, regardless of what tab you're on.
 
 ---
 
 **Multiple notes per context:**
 
-Create as many notes as you need for the same URL, domain, or workspace. Switch between them instantly using the pill selector — each one saved and accessible independently.
+Create as many notes as you need for the same URL, domain, or workspace. Switch between them with the pill selector — each saved and accessible independently.
 
 ---
 
@@ -36,29 +38,35 @@ Create as many notes as you need for the same URL, domain, or workspace. Switch 
 
 ✎ **Side panel** — Notes open beside your content, never replacing it. Keep reading while you write.
 
-⚡ **Autosave** — Every keystroke is saved automatically. No Cmd+S, no lost notes.
+⚡ **Autosave** — Every keystroke saved instantly. No Ctrl+S, no lost notes.
 
-🔄 **Auto tab sync** — Switch tabs and the panel instantly shows the notes for your new tab. No manual refresh needed.
+🔄 **Auto tab sync** — Switch tabs and the panel instantly shows notes for your new context.
 
-🏷 **Tags** — Organize with tags, filter by them instantly in full-text search.
+🏷 **Tags & search** — Tag any note, filter by tags, or full-text search across everything in real time.
 
-◈ **Markdown preview** — Write in Markdown and toggle a rendered preview without leaving the editor.
+◈ **Markdown** — Write in Markdown with a live rendered preview toggle.
 
-🔍 **Full-text search** — Find any note across all your tabs, domains, and workspaces in real time.
+☽ **Dark mode** — Follows your system preference automatically, or set it manually.
 
-☽ **Dark mode** — Automatic dark/light mode following your system preference, or set it manually.
+⏱ **Reading time** — See estimated reading time for every note at a glance.
 
----
-
-**Completely private:**
-
-TabNotes stores everything locally on your device using chrome.storage.local. No servers. No account. No cloud. Your notes never leave your browser.
-
-**Export your notes as JSON** anytime with one click. Restore from backup just as easily — notes are merged, nothing is lost. Full data portability, always.
+📋 **Copy to clipboard** — Copy any note's content with one click.
 
 ---
 
-**Open source:** github.com/mikepchelper-spec/TabNotes
+**100% private by design:**
+
+TabNotes stores everything locally on your device using chrome.storage.local. Zero servers. Zero account. Zero cloud. Your notes never leave your browser.
+
+**Export / import** your notes as JSON anytime. Full backup and restore in one click — notes are merged, nothing is overwritten.
+
+---
+
+**Free forever. Open source.**
+
+github.com/mikepchelper-spec/TabNotes
+
+❤️ If TabNotes saves you time: paypal.me/atlaspcsupport
 
 ---
 
@@ -68,21 +76,31 @@ Productivity
 ## Language
 English
 
-## Permissions justification
-- **storage** — Save notes locally on your device using chrome.storage.local
-- **tabs** — Read the current tab's URL to link notes contextually, and detect tab switches to auto-update the panel
-- **activeTab** — Access the current tab's URL when the panel is open
-- **sidePanel** — Display the notes panel alongside browser content without replacing the page
+## Permissions justification (for Store review form)
+- **storage** — Saves all notes locally on your device (chrome.storage.local). No external server involved.
+- **tabs** — Reads the current tab's URL to automatically link notes to the right context, and detects tab switches to update the panel instantly.
+- **activeTab** — Accesses the current tab's URL when the side panel is open.
+- **sidePanel** — Displays the notes panel alongside the page content without replacing it.
 
-## Screenshots needed (1280×800 or 640×400)
-1. Side panel open on a real webpage — writing a domain note with autosave badge visible
-2. Multiple notes (pills) for the same domain — showing Note 1, Note 2, Note 3 + add button
-3. All Notes view — search bar with results, tags, scope icons
-4. Dark mode — side panel in dark theme on a dark website
-5. Settings view — Data section with Export/Import buttons visible
+---
+
+## Screenshots checklist (1280×800 required)
+
+1. **Hero** — Side panel open on a real webpage (e.g. a news article), writing a URL note. Autosave badge visible.
+2. **Multiple notes** — Several note pills for the same domain (Note 1, 2, 3 + add button).
+3. **All Notes view** — Search bar active with results, tag chips visible, scope icons on cards.
+4. **Dark mode** — Side panel in dark theme on a dark-background website.
+5. **Settings** — Settings view showing theme switcher + Support (Buy me a coffee) section visible.
+
+Tips for screenshots:
+- Use Chrome at 100% zoom
+- Make the side panel visible alongside real web content (not a blank tab)
+- 1280×800 exactly (you can use the Chrome DevTools device toolbar to set this)
+
+---
 
 ## Promotional tile (440×280)
 Tagline: "Notes that know where you are"
-Background: deep blue gradient (#1e3a5f → #0f1e30)
-Logo: white T mark, "TabNotes" in white
+Background: solid #2b5be8 or gradient (#2b5be8 → #1a3fc0)
+Logo: white T mark + "TabNotes" in white
 Sub: "URL · Domain · Workspace · Global"
