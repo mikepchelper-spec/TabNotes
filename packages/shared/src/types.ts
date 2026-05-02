@@ -17,6 +17,8 @@ export interface Note {
   folder?: string;
   versions?: NoteVersion[];
   reminderAt?: number;
+  encrypted?: boolean;
+  encryptedData?: string;
   createdAt: number;
   updatedAt: number;
 }
