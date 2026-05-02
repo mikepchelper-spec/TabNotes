@@ -1,28 +1,28 @@
 /* ─── Design Tokens ─────────────────────────────────────────── */
 :root {
-  /* Oxford Blue backgrounds */
-  --bg: #002147;
-  --bg-card: #002c5c;
-  --bg-subtle: #003270;
-  --bg-muted: #003d85;
-  --bg-input: #001d3d;
+  /* Light backgrounds */
+  --bg: #fafaf9;
+  --bg-card: #ffffff;
+  --bg-subtle: #f4f2ef;
+  --bg-muted: #ede9e3;
+  --bg-input: #f8f7f5;
   /* Borders */
-  --border: #1a4070;
-  --border-strong: #2a5a90;
-  /* Text — white + blue-tinted shades */
-  --text: #ffffff;
-  --text-muted: #a0c4e0;
-  --text-subtle: #5c8aaa;
+  --border: #e5e1da;
+  --border-strong: #cec9c0;
+  /* Text */
+  --text: #1a1916;
+  --text-muted: #6b6560;
+  --text-subtle: #a09890;
   /* Vivid Orange accent */
   --accent: #ff6200;
-  --accent-hover: #ff7a1a;
-  --accent-soft: #1a1f4a;
-  --accent-muted: #2a2f5a;
+  --accent-hover: #e55700;
+  --accent-soft: #fff3ec;
+  --accent-muted: #ffe0cc;
   /* Status */
-  --success: #22c55e;
-  --success-soft: #0a2318;
-  --danger: #ff6b6b;
-  --danger-soft: #2a0f0f;
+  --success: #16a34a;
+  --success-soft: #f0fdf4;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
   /* Typography & shape */
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: 'JetBrains Mono', 'Fira Code', monospace;
@@ -31,34 +31,34 @@
   --r-lg: 14px;
   --r-xl: 18px;
   --r-full: 9999px;
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.25);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.35);
-  --shadow-md: 0 4px 20px rgba(0,0,0,0.45);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.12);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
-  --bg: #001230;
-  --bg-card: #001840;
-  --bg-subtle: #001d4d;
-  --bg-muted: #00255c;
-  --bg-input: #000e25;
-  --border: #0f3060;
-  --border-strong: #1a4575;
-  --text: #ffffff;
-  --text-muted: #7aafd0;
-  --text-subtle: #3a6888;
+  --bg: #0f0f0e;
+  --bg-card: #161614;
+  --bg-subtle: #1c1c1a;
+  --bg-muted: #242420;
+  --bg-input: #1a1a18;
+  --border: #2a2926;
+  --border-strong: #3a3832;
+  --text: #f0ede8;
+  --text-muted: #9a958e;
+  --text-subtle: #6a6560;
   --accent: #ff6200;
   --accent-hover: #ff7a1a;
-  --accent-soft: #120f35;
-  --accent-muted: #1e1a48;
+  --accent-soft: #1e1000;
+  --accent-muted: #2a1800;
   --success: #22c55e;
   --success-soft: #071a10;
   --danger: #ff8080;
   --danger-soft: #200a0a;
-  --shadow-xs: 0 1px 3px rgba(0,0,0,0.5);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.6);
-  --shadow-md: 0 4px 20px rgba(0,0,0,0.7);
+  --shadow-xs: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.65);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────────── */
@@ -1089,6 +1089,28 @@ body {
   cursor: pointer;
   font-family: var(--font);
   text-decoration: none;
+}
+.sp-coffee-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 14px 14px;
+  padding: 10px 14px;
+  border-radius: var(--r-lg);
+  border: 1.5px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.sp-coffee-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* ─── Data management ────────────────────────────────────────── */
