@@ -3,6 +3,11 @@
 > Beautiful, premium, local-first contextual notes per tab, URL, domain, and workspace.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-PayPal-ff6200?logo=paypal)](https://www.paypal.com/paypalme/atlaspcsupport)
+
+## Support
+
+If TabNotes saves you time, you can [buy me a coffee ☕](https://www.paypal.com/paypalme/atlaspcsupport) — it helps a lot and is much appreciated!
 
 ## Vision
 
