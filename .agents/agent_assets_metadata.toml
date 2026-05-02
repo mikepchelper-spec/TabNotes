@@ -96,3 +96,9 @@ id = "yxUyA4jvI_xFWiU0paFUI"
 uri = "file://store/tabnotes-extension-v1.8.0.zip"
 type = "unspecified"
 title = "TabNotes v1.8.0 — Todas las mejoras"
+
+[[outputs]]
+id = "0LWTfRTjL5NHTRHnWgnXn"
+uri = "file://store/tabnotes-extension-v1.8.1.zip"
+type = "unspecified"
+title = "TabNotes v1.8.1 — Chrome Extension ZIP"
