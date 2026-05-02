@@ -22,6 +22,39 @@ const SCOPE_OPTIONS: { value: NoteScope; label: string; icon: string; desc: stri
   { value: 'global',    label: 'Global',    icon: '🌍', desc: 'Everywhere' },
 ];
 
+const NOTE_COLORS = [
+  { value: '', label: 'Default' },
+  { value: '#fef9c3', label: 'Yellow' },
+  { value: '#dcfce7', label: 'Green' },
+  { value: '#dbeafe', label: 'Blue' },
+  { value: '#fce7f3', label: 'Pink' },
+  { value: '#ede9fe', label: 'Purple' },
+];
+
+const TEMPLATES = [
+  {
+    label: '📋 Meeting',
+    title: 'Meeting Notes',
+    content: '## Attendees\n- \n\n## Agenda\n1. \n\n## Decisions\n- \n\n## Action Items\n- [ ] ',
+  },
+  {
+    label: '✅ To-Do',
+    title: 'To-Do List',
+    content: '## Today\n- [ ] \n- [ ] \n- [ ] \n\n## This week\n- [ ] \n- [ ] ',
+  },
+  {
+    label: '🔬 Research',
+    title: 'Research',
+    content: '## Goal\n\n## Sources\n- \n\n## Key findings\n\n## Summary\n',
+  },
+  {
+    label: '📅 Daily Log',
+    title: '',
+    content: '',
+    dynamic: true,
+  },
+];
+
 function readingTime(text: string): string {
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words < 50) return '';
@@ -117,6 +150,24 @@ export default function SidePanelApp() {
   // Copy to clipboard feedback
   const [copied, setCopied] = useState(false);
 
+  // Note colors & pins (stored in localStorage)
+  const [noteColors, setNoteColors] = useState<Record<string, string>>({});
+  const [pinnedNotes, setPinnedNotes] = useState<Set<string>>(new Set());
+  const [colorPickerNoteId, setColorPickerNoteId] = useState<string | null>(null);
+
+  // Font size: 12 | 13 | 15
+  const [fontSize, setFontSizeState] = useState<number>(13);
+
+  // Focus mode (hides all chrome, just editor)
+  const [focusMode, setFocusMode] = useState(false);
+
+  // Templates dropdown
+  const [showTemplates, setShowTemplates] = useState(false);
+  const templatesRef = useRef<HTMLDivElement>(null);
+
+  // Textarea ref (for cursor-based insertion)
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Services
   const adapter = useRef(new ChromeStorageAdapter());
   const noteSvc = useRef(new NotesService(adapter.current));
@@ -134,6 +185,18 @@ export default function SidePanelApp() {
   useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
   useEffect(() => { wsIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
+  // ── Load extra prefs from localStorage ───────────────────────
+  useEffect(() => {
+    try {
+      const colors = localStorage.getItem('tn_colors');
+      if (colors) setNoteColors(JSON.parse(colors));
+      const pins = localStorage.getItem('tn_pins');
+      if (pins) setPinnedNotes(new Set(JSON.parse(pins)));
+      const fs = localStorage.getItem('tn_fontsize');
+      if (fs) setFontSizeState(Number(fs));
+    } catch { /* ignore */ }
+  }, []);
+
   // ── Click outside → close workspace dropdown ─────────────────
   useEffect(() => {
     if (!wsDropdown) return;
@@ -143,6 +206,53 @@ export default function SidePanelApp() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [wsDropdown]);
+
+  // ── Click outside → close templates dropdown ─────────────────
+  useEffect(() => {
+    if (!showTemplates) return;
+    const handle = (e: MouseEvent) => {
+      if (!templatesRef.current?.contains(e.target as Node)) setShowTemplates(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showTemplates]);
+
+  // ── Click outside → close color picker ───────────────────────
+  useEffect(() => {
+    if (!colorPickerNoteId) return;
+    const handle = (e: MouseEvent) => {
+      const el = document.querySelector('.sp-color-picker');
+      if (el && !el.contains(e.target as Node)) setColorPickerNoteId(null);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [colorPickerNoteId]);
+
+  // ── Keyboard shortcuts ────────────────────────────────────────
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const ctrl = isMac ? e.metaKey : e.ctrlKey;
+      if (!ctrl) return;
+
+      if (e.key === 's') {
+        e.preventDefault();
+        clearTimeout(saveTimer.current);
+        saveNote(content, title, tags);
+      } else if (e.key === 'd') {
+        e.preventDefault();
+        insertDatetime();
+      } else if (e.key === 'f' && e.shiftKey) {
+        e.preventDefault();
+        setFocusMode((p) => !p);
+      } else if (e.key === 'Escape' && focusMode) {
+        setFocusMode(false);
+      }
+    };
+    document.addEventListener('keydown', handle);
+    return () => document.removeEventListener('keydown', handle);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, title, tags, focusMode]);
 
   // ── Theme ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -456,6 +566,88 @@ export default function SidePanelApp() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ── Insert date/time at cursor ────────────────────────────────
+  const insertDatetime = () => {
+    const ta = textareaRef.current;
+    const now = new Date();
+    const str = now.toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    if (ta) {
+      const start = ta.selectionStart ?? content.length;
+      const end = ta.selectionEnd ?? content.length;
+      const next = content.slice(0, start) + str + content.slice(end);
+      setContent(next);
+      schedule(next, title, tags);
+      setTimeout(() => {
+        ta.focus();
+        ta.setSelectionRange(start + str.length, start + str.length);
+      }, 0);
+    } else {
+      const next = content + (content ? '\n' : '') + str;
+      setContent(next);
+      schedule(next, title, tags);
+    }
+  };
+
+  // ── Export current note as .md ────────────────────────────────
+  const exportCurrentNote = () => {
+    if (!content && !title) return;
+    const text = [title ? `# ${title}` : '', content].filter(Boolean).join('\n\n');
+    const blob = new Blob([text], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const slug = (title || 'note').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
+    a.href = url;
+    a.download = `${slug}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Note color ────────────────────────────────────────────────
+  const setNoteColor = (noteId: string, color: string) => {
+    const next = { ...noteColors };
+    if (color) next[noteId] = color;
+    else delete next[noteId];
+    setNoteColors(next);
+    localStorage.setItem('tn_colors', JSON.stringify(next));
+    setColorPickerNoteId(null);
+  };
+
+  // ── Pin / unpin note ──────────────────────────────────────────
+  const togglePin = (noteId: string) => {
+    const next = new Set(pinnedNotes);
+    next.has(noteId) ? next.delete(noteId) : next.add(noteId);
+    setPinnedNotes(next);
+    localStorage.setItem('tn_pins', JSON.stringify(Array.from(next)));
+  };
+
+  // ── Font size ─────────────────────────────────────────────────
+  const changeFontSize = (dir: 1 | -1) => {
+    const SIZES = [11, 12, 13, 14, 15, 16];
+    const idx = SIZES.indexOf(fontSize);
+    const next = SIZES[Math.max(0, Math.min(SIZES.length - 1, idx + dir))];
+    setFontSizeState(next);
+    localStorage.setItem('tn_fontsize', String(next));
+  };
+
+  // ── Apply template ────────────────────────────────────────────
+  const applyTemplate = (tpl: typeof TEMPLATES[0]) => {
+    let newTitle = tpl.title;
+    let newContent = tpl.content;
+    if (tpl.dynamic) {
+      const d = new Date();
+      newTitle = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      newContent = `# ${newTitle}\n\n## Done\n- \n\n## Notes\n\n## Tomorrow\n- `;
+    }
+    setTitle(newTitle);
+    setContent(newContent);
+    schedule(newContent, newTitle, tags);
+    setShowTemplates(false);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  };
+
   // ── Export / Import ───────────────────────────────────────────
   const showFeedback = (type: 'success' | 'error', msg: string) => {
     setDataFeedback({ type, msg });
@@ -509,6 +701,15 @@ export default function SidePanelApp() {
   // ── Derived ──────────────────────────────────────────────────
   const activeNote = contextNotes.find((n) => n.id === activeNoteId) ?? null;
 
+  // Sort pinned notes first in the pills
+  const sortedContextNotes = [...contextNotes].sort((a, b) => {
+    const aPin = pinnedNotes.has(a.id) ? 0 : 1;
+    const bPin = pinnedNotes.has(b.id) ? 0 : 1;
+    return aPin - bPin;
+  });
+
+  const activeNoteColor = activeNoteId ? (noteColors[activeNoteId] ?? '') : '';
+
   const scopeKey =
     scope === 'url'       ? normalizeUrl(currentUrl) :
     scope === 'domain'    ? currentDomain :
@@ -534,7 +735,7 @@ export default function SidePanelApp() {
   }
 
   return (
-    <div className="sp-root">
+    <div className={`sp-root${focusMode ? ' focus-mode' : ''}`}>
 
       {/* ── Header ── */}
       <div className="sp-header">
@@ -651,13 +852,16 @@ export default function SidePanelApp() {
           >‹</button>
 
           <div className="sp-note-pills" ref={pillsRef}>
-            {contextNotes.map((n, idx) => {
+            {sortedContextNotes.map((n, idx) => {
               const isActive = n.id === activeNoteId;
               const isConfirm = deletePillConfirmId === n.id;
+              const isPinned = pinnedNotes.has(n.id);
+              const color = noteColors[n.id];
               return (
                 <div
                   key={n.id}
                   className={`sp-note-pill${isActive ? ' active' : ''}${isConfirm ? ' confirm' : ''}`}
+                  style={color && !isActive ? { borderColor: color, background: color } : undefined}
                   onClick={() => {
                     if (isConfirm) {
                       deletePillNote(n.id);
@@ -669,6 +873,7 @@ export default function SidePanelApp() {
                   title={isConfirm ? 'Click to confirm delete' : (n.title || `Note ${idx + 1}`)}
                   role="button"
                 >
+                  {isPinned && <span style={{ fontSize: 8, flexShrink: 0 }}>📌</span>}
                   <span className="sp-pill-label">
                     {isConfirm ? 'Delete?' : pillLabel(n, idx)}
                   </span>
@@ -705,6 +910,25 @@ export default function SidePanelApp() {
             title="Add another note for this context"
             disabled={tabLoading}
           >+</button>
+
+          {/* Templates dropdown */}
+          <div style={{ position: 'relative', flexShrink: 0 }} ref={templatesRef}>
+            <button
+              className="sp-note-pill-add"
+              onClick={() => setShowTemplates(!showTemplates)}
+              title="Insert template"
+              style={{ fontSize: 12, borderStyle: 'solid' }}
+            >≡</button>
+            {showTemplates && (
+              <div className="sp-templates-dropdown">
+                {TEMPLATES.map((tpl) => (
+                  <button key={tpl.label} className="sp-template-item" onClick={() => applyTemplate(tpl)}>
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -733,16 +957,19 @@ export default function SidePanelApp() {
                 {preview && markdownEnabled ? (
                   <div
                     className="sp-markdown-preview"
+                    style={activeNoteColor ? { background: activeNoteColor } : undefined}
                     dangerouslySetInnerHTML={{ __html: content ? parseMarkdown(content) : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>' }}
                   />
                 ) : (
                   <textarea
+                    ref={textareaRef}
                     className={`sp-note-textarea${markdownEnabled ? ' mono' : ''}`}
                     autoFocus={!tabLoading}
                     value={content}
                     onChange={(e) => { setContent(e.target.value); schedule(e.target.value, title, tags); }}
                     placeholder={`Note for this ${scope}…`}
                     disabled={tabLoading}
+                    style={{ fontSize: fontSize, ...(activeNoteColor ? { background: activeNoteColor } : {}) }}
                   />
                 )}
 
@@ -767,28 +994,79 @@ export default function SidePanelApp() {
                       <span className="sp-note-meta-text">{readingTime(content)}</span>
                     </>
                   )}
-                  {activeNote && (
-                    <>
-                      <span className="sp-note-meta-sep">·</span>
-                      <span className="sp-note-meta-text">{formatRelativeTime(activeNote.updatedAt)}</span>
-                    </>
-                  )}
                   <span className="sp-note-meta-spacer" />
+
+                  {/* Insert date */}
+                  <button className="sp-meta-toggle" onClick={insertDatetime} title="Insert date/time (Ctrl+D)">📅</button>
+
+                  {/* Font size */}
+                  <button className="sp-meta-toggle" onClick={() => changeFontSize(-1)} title="Smaller text" style={{ fontWeight: 700 }}>A-</button>
+                  <button className="sp-meta-toggle" onClick={() => changeFontSize(1)} title="Larger text" style={{ fontWeight: 700 }}>A+</button>
+
+                  {/* Pin */}
+                  {activeNoteId && (
+                    <button
+                      className={`sp-meta-toggle${pinnedNotes.has(activeNoteId) ? ' active' : ''}`}
+                      onClick={() => togglePin(activeNoteId)}
+                      title={pinnedNotes.has(activeNoteId) ? 'Unpin note' : 'Pin note'}
+                    >📌</button>
+                  )}
+
+                  {/* Color picker */}
+                  {activeNoteId && (
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        className={`sp-meta-toggle${activeNoteColor ? ' active' : ''}`}
+                        onClick={() => setColorPickerNoteId(colorPickerNoteId ? null : activeNoteId)}
+                        title="Note color"
+                        style={activeNoteColor ? { borderColor: activeNoteColor, background: activeNoteColor, color: '#333' } : undefined}
+                      >🎨</button>
+                      {colorPickerNoteId === activeNoteId && (
+                        <div className="sp-color-picker">
+                          {NOTE_COLORS.map((c) => (
+                            <button
+                              key={c.value}
+                              className={`sp-color-swatch${activeNoteColor === c.value ? ' active' : ''}`}
+                              style={{ background: c.value || 'var(--bg-subtle)', border: '2px solid ' + (activeNoteColor === c.value ? 'var(--accent)' : 'var(--border)') }}
+                              onClick={() => setNoteColor(activeNoteId, c.value)}
+                              title={c.label}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Export current note */}
+                  {(content || title) && (
+                    <button className="sp-meta-toggle" onClick={exportCurrentNote} title="Export note as .md">↓md</button>
+                  )}
+
+                  {/* Focus mode */}
+                  <button
+                    className={`sp-meta-toggle${focusMode ? ' active' : ''}`}
+                    onClick={() => setFocusMode(!focusMode)}
+                    title={focusMode ? 'Exit focus mode (Esc)' : 'Focus mode (Ctrl+Shift+F)'}
+                  >{focusMode ? '⊠' : '⊡'}</button>
+
+                  {/* Copy */}
                   {content && (
                     <button
                       className={`sp-meta-toggle${copied ? ' active' : ''}`}
                       onClick={copyNote}
                       title="Copy note to clipboard"
                     >
-                      {copied ? '✓ Copied' : '⎘ Copy'}
+                      {copied ? '✓' : '⎘'}
                     </button>
                   )}
+
+                  {/* Markdown preview */}
                   {markdownEnabled && (
                     <button
                       className={`sp-meta-toggle${preview ? ' active' : ''}`}
                       onClick={() => setPreview(!preview)}
                     >
-                      {preview ? '✎ Edit' : '◈ Preview'}
+                      {preview ? '✎' : '◈'}
                     </button>
                   )}
                 </div>
