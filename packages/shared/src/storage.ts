@@ -31,6 +31,8 @@ function migrateNote(raw: Partial<Note>): Note {
     folder: raw.folder,
     versions: raw.versions ?? [],
     reminderAt: raw.reminderAt,
+    encrypted: raw.encrypted,
+    encryptedData: raw.encryptedData,
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? Date.now(),
   };
@@ -152,7 +154,7 @@ export class NotesService {
 
   async updateNote(
     id: string,
-    updates: Partial<Pick<Note, 'content' | 'title' | 'tags' | 'folder' | 'reminderAt'>>,
+    updates: Partial<Pick<Note, 'content' | 'title' | 'tags' | 'folder' | 'reminderAt' | 'encrypted' | 'encryptedData'>>,
   ): Promise<Note | null> {
     const data = await this.adapter.get();
     const note = data.notes[id];
