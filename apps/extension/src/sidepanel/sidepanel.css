@@ -1774,6 +1774,57 @@ body {
 .sp-move-item.new { color: var(--accent); }
 .sp-move-divider { height: 1px; background: var(--border); margin: 2px 0; }
 
+/* ─── Offline indicator ──────────────────────────────────────── */
+.tn-offline-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 99px;
+  cursor: default;
+}
+[data-theme="dark"] .tn-offline-badge {
+  background: rgba(239,68,68,.15);
+  border-color: rgba(239,68,68,.3);
+}
+.tn-offline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  animation: tn-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+.tn-offline-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: #ef4444;
+  line-height: 1;
+}
+.tn-synced-toast {
+  display: flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #16a34a;
+  animation: fadeIn 200ms var(--ease);
+}
+[data-theme="dark"] .tn-synced-toast {
+  background: rgba(34,197,94,.15);
+  border-color: rgba(34,197,94,.3);
+  color: #4ade80;
+}
+
 /* ─── Wiki links ──────────────────────────────────────────────── */
 .tn-wikilink {
   color: var(--accent);
