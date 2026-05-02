@@ -90,3 +90,9 @@ id = "H5JMRHp3xTe52diO3p0c6"
 uri = "file://store/tabnotes-extension-v1.7.2.zip"
 type = "unspecified"
 title = "TabNotes v1.7.2 — Las 4 categorías siempre visibles + colapsadas por defecto"
+
+[[outputs]]
+id = "yxUyA4jvI_xFWiU0paFUI"
+uri = "file://store/tabnotes-extension-v1.8.0.zip"
+type = "unspecified"
+title = "TabNotes v1.8.0 — Todas las mejoras"
