@@ -13,11 +13,11 @@
   --text: #1a1916;
   --text-muted: #6b6560;
   --text-subtle: #a09890;
-  /* Vivid Orange accent */
-  --accent: #ff6200;
-  --accent-hover: #e55700;
-  --accent-soft: #fff3ec;
-  --accent-muted: #ffe0cc;
+  /* Blue accent */
+  --accent: #2b5be8;
+  --accent-hover: #1e4dd4;
+  --accent-soft: #edf1ff;
+  --accent-muted: #dce4ff;
   /* Status */
   --success: #16a34a;
   --success-soft: #f0fdf4;
@@ -48,10 +48,10 @@
   --text: #f0ede8;
   --text-muted: #9a958e;
   --text-subtle: #6a6560;
-  --accent: #ff6200;
-  --accent-hover: #ff7a1a;
-  --accent-soft: #1e1000;
-  --accent-muted: #2a1800;
+  --accent: #5c83f5;
+  --accent-hover: #7499f6;
+  --accent-soft: #0e1740;
+  --accent-muted: #162258;
   --success: #22c55e;
   --success-soft: #071a10;
   --danger: #ff8080;
@@ -103,7 +103,7 @@ body {
 .sp-logo-mark {
   width: 26px;
   height: 26px;
-  background: linear-gradient(135deg, #ff6200, #ff3d00);
+  background: linear-gradient(135deg, #2b5be8, #1a3fc0);
   border-radius: 7px;
   display: flex;
   align-items: center;
@@ -112,7 +112,7 @@ body {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  box-shadow: 0 2px 8px rgba(255,98,0,0.45);
+  box-shadow: 0 2px 8px rgba(43,91,232,0.45);
   flex-shrink: 0;
 }
 
@@ -1250,12 +1250,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(255,98,0,0.4);
+  box-shadow: 0 4px 14px rgba(43,91,232,0.4);
   transition: all 150ms var(--ease);
   font-family: var(--font);
   z-index: 10;
 }
-.sp-fab:hover { background: var(--accent-hover); transform: scale(1.06); box-shadow: 0 6px 18px rgba(255,98,0,0.5); }
+.sp-fab:hover { background: var(--accent-hover); transform: scale(1.06); box-shadow: 0 6px 18px rgba(43,91,232,0.5); }
 .sp-fab:active { transform: scale(0.96); }
 
 /* ─── Loading ────────────────────────────────────────────────── */
