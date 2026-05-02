@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "TabNotes",
+  "version": "1.0.0",
+  "description": "Contextual notes per tab, domain, and workspace — local-first, no account needed.",
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "48": "icons/icon48.svg"
+    },
+    "default_title": "TabNotes"
+  },
+  "options_page": "options/index.html",
+  "background": {
+    "service_worker": "background/index.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}
