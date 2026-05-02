@@ -94,8 +94,10 @@ export default function SidePanelApp() {
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
-  // Collapsible scope groups in All Notes
-  const [collapsedScopes, setCollapsedScopes] = useState<Set<string>>(new Set());
+  // Collapsible scope groups — all collapsed by default
+  const [collapsedScopes, setCollapsedScopes] = useState<Set<string>>(
+    new Set(['url', 'domain', 'workspace', 'global'])
+  );
   const toggleScope = (sc: string) =>
     setCollapsedScopes((prev) => { const n = new Set(prev); n.has(sc) ? n.delete(sc) : n.add(sc); return n; });
 
@@ -752,7 +754,6 @@ export default function SidePanelApp() {
                     scopeOpt,
                     notes: filteredNotes.filter((n) => n.scope === scopeOpt.value),
                   }))
-                  .filter(({ notes }) => notes.length > 0)
                   .map(({ scopeOpt, notes }) => {
                     const isCollapsed = collapsedScopes.has(scopeOpt.value);
                     return (

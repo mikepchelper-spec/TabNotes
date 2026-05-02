@@ -84,3 +84,9 @@ id = "EuYzPZqUVi7GstcVvwAb5"
 uri = "file://store/tabnotes-extension-v1.7.1.zip"
 type = "unspecified"
 title = "TabNotes v1.7.1 — Tacho naranja + Notas por categoría"
+
+[[outputs]]
+id = "H5JMRHp3xTe52diO3p0c6"
+uri = "file://store/tabnotes-extension-v1.7.2.zip"
+type = "unspecified"
+title = "TabNotes v1.7.2 — Las 4 categorías siempre visibles + colapsadas por defecto"
