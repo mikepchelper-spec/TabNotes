@@ -484,14 +484,21 @@ export default function SidePanelApp() {
           <span className="sp-context-key" title={scopeKey}>
             {tabLoading ? 'Switching tab…' : (scopeKey || '—')}
           </span>
-          {saved && (
-            <span className="sp-save-badge">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path d="M2 5L4 7L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Saved
-            </span>
-          )}
+          <div className="sp-context-right">
+            {!tabLoading && contextNotes.length > 0 && (
+              <span className="sp-context-count">
+                {contextNotes.length} {contextNotes.length === 1 ? 'note' : 'notes'}
+              </span>
+            )}
+            {saved && (
+              <span className="sp-save-badge">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 5L4 7L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Saved
+              </span>
+            )}
+          </div>
         </div>
       )}
 

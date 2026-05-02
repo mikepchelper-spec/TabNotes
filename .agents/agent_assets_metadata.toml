@@ -42,3 +42,9 @@ id = "Q5BRCYVGq7hD9IEDWbFWe"
 uri = "file://store/tabnotes-extension-v1.5.0.zip"
 type = "unspecified"
 title = "TabNotes v1.5.0 — Flechas de navegación + Eliminar en pill"
+
+[[outputs]]
+id = "LMMu2mcZq8TkYA_qXYl4b"
+uri = "file://store/tabnotes-extension-v1.5.1.zip"
+type = "unspecified"
+title = "TabNotes v1.5.1 — Contador de notas por contexto"

@@ -221,6 +221,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px;
   padding: 5px 14px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-subtle);
@@ -233,8 +234,25 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 80%;
+  flex: 1;
   font-family: var(--mono);
+}
+.sp-context-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.sp-context-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 1px 7px;
+  white-space: nowrap;
+  letter-spacing: 0.1px;
 }
 .sp-save-badge {
   font-size: 10px;
