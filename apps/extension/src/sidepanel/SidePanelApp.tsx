@@ -137,8 +137,9 @@ function autoTitleFromContent(c: string): string {
 async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const saltBytes = new Uint8Array(salt);
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: saltBytes, iterations: 100_000, hash: 'SHA-256' },
     km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
   );
 }
@@ -772,7 +773,7 @@ export default function SidePanelApp() {
           const key = gk['tn_groq_key'] as string;
           setGroqKey(key); setGroqKeyInput(key);
         } else {
-          const envKey = (import.meta.env.VITE_GROQ_KEY as string | undefined) ?? '';
+          const envKey = ((import.meta as ImportMeta & { env?: { VITE_GROQ_KEY?: string } }).env?.VITE_GROQ_KEY) ?? '';
           if (envKey) {
             setGroqKey(envKey); setGroqKeyInput(envKey);
             cr?.storage?.local?.set({ tn_groq_key: envKey });
@@ -1828,7 +1829,7 @@ ${parseMarkdown(content)}
           <button className="sp-icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
             {theme === 'dark' ? '☀' : '☽'}
           </button>
-          <button className="sp-icon-btn" onClick={() => cr?.runtime?.openOptionsPage()} title="Settings">⚙</button>
+          <button className="sp-icon-btn" onClick={() => setView('settings')} title="Settings">⚙</button>
         </div>
       </div>
 
