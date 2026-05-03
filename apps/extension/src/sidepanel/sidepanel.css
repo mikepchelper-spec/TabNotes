@@ -1774,6 +1774,132 @@ body {
 .sp-move-item.new { color: var(--accent); }
 .sp-move-divider { height: 1px; background: var(--border); margin: 2px 0; }
 
+/* ─── Formatting toolbar ─────────────────────────────────────── */
+.sp-fmt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.sp-fmt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  transition: background 100ms, color 100ms;
+  flex-shrink: 0;
+}
+.sp-fmt-btn:hover { background: var(--bg-card); color: var(--text); }
+.sp-fmt-bold  { font-weight: 800; font-size: 13px; }
+.sp-fmt-italic { font-style: italic; }
+.sp-fmt-underline { text-decoration: underline; }
+.sp-fmt-strike { text-decoration: line-through; }
+.sp-fmt-code  { font-family: monospace; font-size: 11px; letter-spacing: -.5px; }
+.sp-fmt-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+.sp-fmt-color-btn, .sp-fmt-highlight-btn {
+  font-size: 12px;
+  font-weight: 700;
+}
+.sp-fmt-color-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 120;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 7px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  width: 126px;
+}
+.sp-fmt-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,.1);
+  cursor: pointer;
+  transition: transform 120ms, box-shadow 120ms;
+}
+.sp-fmt-swatch:hover { transform: scale(1.2); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+
+/* ─── Smart suggestions bar ─────────────────────────────────── */
+.sp-suggestions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+  animation: fadeIn 200ms ease;
+}
+.sp-suggestions-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  flex-shrink: 0;
+}
+.sp-suggestion-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.sp-suggestion-item:hover { background: var(--accent-soft, #edf1ff); color: var(--accent); border-color: var(--accent); }
+.sp-suggestion-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-suggestions-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.sp-suggestions-dismiss:hover { color: var(--text); }
+
 /* ─── Chat / RAG view ───────────────────────────────────────── */
 .sp-chat-view {
   display: flex;
