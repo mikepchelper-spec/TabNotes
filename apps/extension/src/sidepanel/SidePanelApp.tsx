@@ -1044,12 +1044,22 @@ ${parseMarkdown(content)}
       document.execCommand(execMap[cmd]);
     } else if (cmd === '==') {
       const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
-        const range = sel.getRangeAt(0);
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      const anchor = range.commonAncestorContainer;
+      const anchorEl = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as Element;
+      const existing = anchorEl?.closest('.tn-highlight');
+      if (existing) {
+        // Toggle OFF — unwrap the highlight span
+        const p = existing.parentNode!;
+        while (existing.firstChild) p.insertBefore(existing.firstChild, existing);
+        p.removeChild(existing);
+        p.normalize();
+      } else if (!sel.isCollapsed) {
+        // Toggle ON — wrap selection in highlight span
         const span = document.createElement('span');
         span.className = 'tn-highlight';
-        const contents = range.extractContents();
-        span.appendChild(contents);
+        span.appendChild(range.extractContents());
         range.insertNode(span);
         sel.removeAllRanges();
         const r2 = document.createRange();
@@ -1058,8 +1068,19 @@ ${parseMarkdown(content)}
       }
     } else if (cmd === '`') {
       const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      const anchor = range.commonAncestorContainer;
+      const anchorEl = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as Element;
+      const existing = anchorEl?.closest('code');
+      if (existing) {
+        // Toggle OFF — unwrap the code element
+        const p = existing.parentNode!;
+        while (existing.firstChild) p.insertBefore(existing.firstChild, existing);
+        p.removeChild(existing);
+        p.normalize();
+      } else {
+        // Toggle ON — wrap selection in code element
         const code = document.createElement('code');
         if (!sel.isCollapsed) {
           code.appendChild(range.extractContents());
