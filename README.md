@@ -137,6 +137,20 @@ tabnotes/
 - Node.js 20+
 - pnpm 10+
 
+### Environment variables
+
+The web app uses optional environment variables for AI features. **Never hardcode secrets in files** — set them via your platform's secrets manager (Replit Secrets, GitHub Actions secrets, etc.).
+
+| Variable | Used by | Purpose |
+|---|---|---|
+| `VITE_GROQ_KEY` | `apps/web` | Groq API key for AI-powered features |
+
+Create `apps/web/.env.local` for local development (this file is git-ignored):
+
+```bash
+VITE_GROQ_KEY=your_key_here
+```
+
 ### Install
 
 ```bash
