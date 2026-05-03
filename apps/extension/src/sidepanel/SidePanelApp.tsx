@@ -82,23 +82,24 @@ function readingTime(text: string): string {
 
 function parseMarkdown(text: string): string {
   return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // HTML pass-through — allow <u>, <span style="...">, etc. stored by the toolbar
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+    .replace(/__(.+?)__/g, '<u>$1</u>')
+    .replace(/==(.+?)==/g, '<mark>$1</mark>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
-    // Checked tasks
     .replace(/^- \[x\] (.+)$/gim, '<li class="tn-task tn-done"><input type="checkbox" checked data-task="true" /><span>$1</span></li>')
-    // Unchecked tasks
     .replace(/^- \[ \] (.+)$/gim, '<li class="tn-task"><input type="checkbox" data-task="true" /><span>$1</span></li>')
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
     .replace(/\[\[(.+?)\]\]/g, '<span class="tn-wikilink" data-wiki="$1">[[<u>$1</u>]]</span>')
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<[hul]|<p)(.+)$/gm, '<p>$1</p>')
+    .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
     .replace(/<p><\/p>/g, '');
 }
 
@@ -522,7 +523,7 @@ export default function SidePanelApp() {
               if (localContent === contentSavedRef.current) {
                 // Not dirty — adopt the remote version
                 contentSavedRef.current = remote.content;
-                setTitle(remote.title ?? '');
+                setTitle(stripFormatting(remote.title ?? ''));
                 setTags(remote.tags.join(', '));
                 return remote.content;
               }
@@ -840,7 +841,7 @@ export default function SidePanelApp() {
     clearTimeout(saveTimer.current);
     setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
     setContent(n.content);
-    setTitle(n.title ?? '');
+    setTitle(stripFormatting(n.title ?? ''));
     setTags(n.tags.join(', '));
     setSaved(false); setPreview(false); setConfirmDelete(false);
   };
@@ -1918,8 +1919,8 @@ ${parseMarkdown(content)}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('*', '*'); }}
                       title="Italic (Ctrl+I)"><em>I</em></button>
                     <button className="sp-fmt-btn sp-fmt-underline"
-                      onMouseDown={(e) => { e.preventDefault(); wrapSel('<u>', '</u>'); }}
-                      title="Underline"><u>U</u></button>
+                      onMouseDown={(e) => { e.preventDefault(); wrapSel('__', '__'); }}
+                      title="Underline (Ctrl+U)"><u>U</u></button>
                     <button className="sp-fmt-btn sp-fmt-strike"
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('~~', '~~'); }}
                       title="Strikethrough"><s>S</s></button>
@@ -2015,7 +2016,7 @@ ${parseMarkdown(content)}
                         if (!(e.ctrlKey || e.metaKey)) return;
                         if (e.key === 'b') { e.preventDefault(); wrapSel('**', '**'); }
                         if (e.key === 'i') { e.preventDefault(); wrapSel('*', '*'); }
-                        if (e.key === 'u') { e.preventDefault(); wrapSel('<u>', '</u>'); }
+                        if (e.key === 'u') { e.preventDefault(); wrapSel('__', '__'); }
                       }}
                     />
                     {features.wikiLinks && wikiQuery !== null && (
