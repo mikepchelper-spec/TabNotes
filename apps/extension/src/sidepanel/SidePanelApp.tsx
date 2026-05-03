@@ -1994,7 +1994,7 @@ ${parseMarkdown(content)}
                     }}
                   />
                 ) : (
-                  <div style={{ position: 'relative' }}>
+                  <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <textarea
                       ref={textareaRef}
                       className={`sp-note-textarea${markdownEnabled ? ' mono' : ''}${typewriterMode ? ' tn-typewriter' : ''}`}
