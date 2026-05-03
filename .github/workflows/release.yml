@@ -18,7 +18,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: node scripts/build-extension-release.mjs ${GITHUB_REF_NAME#v}
+      - run: node scripts/build-extension-release.mjs "${GITHUB_REF_NAME#v}"
       - uses: softprops/action-gh-release@v2
         with:
           files: store/tabnotes-extension-${{ github.ref_name }}.zip
