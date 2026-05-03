@@ -16,6 +16,29 @@
 
 ---
 
+## ⬇️ Download
+
+> Install TabNotes in 60 seconds — no Chrome Web Store needed.
+
+| Version | What's new | Download |
+|---|---|---|
+| **v2.8.9** *(latest)* | Full backup/restore · Backup reminders · Active format indicators | [**⬇ Download v2.8.9**](https://github.com/mikepchelper-spec/TabNotes/releases/download/v2.8.9/tabnotes-extension-v2.8.9.zip) |
+| v2.8.5 | Formatting toggles (B/I/U/S/H/code) | [Releases page](https://github.com/mikepchelper-spec/TabNotes/releases) |
+| v2.8.2 | About page · Feature docs | [Releases page](https://github.com/mikepchelper-spec/TabNotes/releases) |
+
+**[→ All releases](https://github.com/mikepchelper-spec/TabNotes/releases)**
+
+### How to install
+
+1. Download the ZIP above
+2. Unzip — you'll get an `apps/extension/dist/` folder inside
+3. Open Chrome → `chrome://extensions`
+4. Enable **Developer mode** (top-right toggle)
+5. Click **Load unpacked** → select the `dist/` folder
+6. Pin the TabNotes icon to your toolbar
+
+---
+
 ## What is TabNotes?
 
 TabNotes is a Chrome extension (Manifest V3) that keeps contextual notes right where you need them — one click away, always in context. Every note is automatically attached to its context: a URL, a domain, a workspace, or the whole browser. No logins, no servers, no tracking. Your data stays in your browser.
@@ -75,6 +98,7 @@ TabNotes is a Chrome extension (Manifest V3) that keeps contextual notes right w
 | **Note History** | Every note is auto-versioned — restore any previous version with one click |
 | **Export as Markdown** | Download any note as a clean `.md` file |
 | **Export / Import JSON** | Back up all notes as JSON and restore them on any device |
+| **Backup Reminders** | Configurable notifications if you haven't exported in N days |
 | **Local-first** | All data lives in Chrome storage — no server, no account, no tracking |
 | **Note Encryption** | Encrypt individual notes with AES-256 and a personal password |
 | **Open Source** | MIT licensed — read, fork, contribute |
@@ -87,17 +111,6 @@ TabNotes is a Chrome extension (Manifest V3) that keeps contextual notes right w
 | **Companion Web App** | Full-featured notes dashboard accessible from any browser |
 | **Context-aware UI** | Scope bar auto-detects your current URL and shows the right notes |
 | **Feature Flags** | Turn any feature on or off from Settings |
-
----
-
-## Quick Install
-
-1. Download the latest ZIP from [Releases](https://github.com/mikepchelner-spec/TabNotes/releases)
-2. Unzip to get the `dist/` folder
-3. Open Chrome → `chrome://extensions`
-4. Enable **Developer mode** (top-right toggle)
-5. Click **Load unpacked** → select the `dist/` folder
-6. The TabNotes icon appears in your toolbar — pin it for easy access
 
 ---
 
