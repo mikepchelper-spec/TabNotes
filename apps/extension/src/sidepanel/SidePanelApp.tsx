@@ -195,6 +195,24 @@ function NoteGraph({ notes, activeId, onSelect }: {
   );
 }
 
+// ── Feature flags (module-level) ─────────────────────────────
+type Features = {
+  formattingBar: boolean;
+  smartSuggestions: boolean;
+  writingStreak: boolean;
+  wikiLinks: boolean;
+  cmdPalette: boolean;
+  chatView: boolean;
+  noteGraph: boolean;
+};
+const DEFAULT_FEATURES: Features = {
+  formattingBar: true, smartSuggestions: true, writingStreak: true,
+  wikiLinks: true, cmdPalette: true, chatView: true, noteGraph: true,
+};
+
+// ── Chat types (module-level) ─────────────────────────────────
+type ChatMsg = { role: 'user' | 'assistant'; content: string };
+
 function pillLabel(n: Note, idx: number): string {
   if (n.title?.trim()) return n.title.trim();
   if (n.content.trim()) {
@@ -278,23 +296,9 @@ export default function SidePanelApp() {
   const [streak, setStreak] = useState(0);
 
   // ── Feature flags ─────────────────────────────────────────────
-  type Features = {
-    formattingBar: boolean;
-    smartSuggestions: boolean;
-    writingStreak: boolean;
-    wikiLinks: boolean;
-    cmdPalette: boolean;
-    chatView: boolean;
-    noteGraph: boolean;
-  };
-  const DEFAULT_FEATURES: Features = {
-    formattingBar: true, smartSuggestions: true, writingStreak: true,
-    wikiLinks: true, cmdPalette: true, chatView: true, noteGraph: true,
-  };
   const [features, setFeatures] = useState<Features>(DEFAULT_FEATURES);
 
   // ── Chat / RAG ────────────────────────────────────────────────
-  type ChatMsg = { role: 'user' | 'assistant'; content: string };
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput]       = useState('');
   const [chatLoading, setChatLoading]   = useState(false);
