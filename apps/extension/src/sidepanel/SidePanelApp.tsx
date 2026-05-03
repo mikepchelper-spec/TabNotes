@@ -81,8 +81,18 @@ function readingTime(text: string): string {
 }
 
 function parseMarkdown(text: string): string {
-  return text
-    // HTML pass-through — allow <u>, <span style="...">, etc. stored by the toolbar
+  // Step 1 — extract inline HTML formatting tags so they survive HTML escaping
+  const htmlChunks: string[] = [];
+  const PH = '\x01';
+  let safe = text
+    .replace(/<(span|u|s|b|i|strong|em|mark|div)\b([^>]*)>([\s\S]*?)<\/\1>/g, (full) => {
+      htmlChunks.push(full); return `${PH}${htmlChunks.length - 1}${PH}`;
+    })
+    .replace(/<br\s*\/?>/g, () => { htmlChunks.push('<br/>'); return `${PH}${htmlChunks.length - 1}${PH}`; });
+
+  // Step 2 — escape remaining HTML, then apply markdown
+  let result = safe
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -99,8 +109,12 @@ function parseMarkdown(text: string): string {
     .replace(/\[\[(.+?)\]\]/g, '<span class="tn-wikilink" data-wiki="$1">[[<u>$1</u>]]</span>')
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
+    .replace(/^(?!<[hul]|<p)(.+)$/gm, '<p>$1</p>')
     .replace(/<p><\/p>/g, '');
+
+  // Step 3 — restore the extracted HTML chunks
+  result = result.replace(new RegExp(`${PH}(\\d+)${PH}`, 'g'), (_, i) => htmlChunks[parseInt(i)] ?? '');
+  return result;
 }
 
 function stripFormatting(s: string): string {
