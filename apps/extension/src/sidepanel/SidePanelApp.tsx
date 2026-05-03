@@ -277,6 +277,22 @@ export default function SidePanelApp() {
   // ── Writing Streak ────────────────────────────────────────────
   const [streak, setStreak] = useState(0);
 
+  // ── Feature flags ─────────────────────────────────────────────
+  type Features = {
+    formattingBar: boolean;
+    smartSuggestions: boolean;
+    writingStreak: boolean;
+    wikiLinks: boolean;
+    cmdPalette: boolean;
+    chatView: boolean;
+    noteGraph: boolean;
+  };
+  const DEFAULT_FEATURES: Features = {
+    formattingBar: true, smartSuggestions: true, writingStreak: true,
+    wikiLinks: true, cmdPalette: true, chatView: true, noteGraph: true,
+  };
+  const [features, setFeatures] = useState<Features>(DEFAULT_FEATURES);
+
   // ── Chat / RAG ────────────────────────────────────────────────
   type ChatMsg = { role: 'user' | 'assistant'; content: string };
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
@@ -390,6 +406,8 @@ export default function SidePanelApp() {
       if (fs) setFontSizeState(Number(fs));
       const al = localStorage.getItem('tn_align') as 'left'|'center'|'right'|null;
       if (al) setDefaultAlignState(al);
+      const ft = localStorage.getItem('tn_features');
+      if (ft) setFeatures((prev) => ({ ...prev, ...JSON.parse(ft) }));
     } catch { /* ignore */ }
   }, []);
 
@@ -574,7 +592,7 @@ export default function SidePanelApp() {
       } else if (e.key === 'd') {
         e.preventDefault();
         insertDatetime();
-      } else if (e.key === 'k') {
+      } else if (e.key === 'k' && features.cmdPalette) {
         e.preventDefault();
         setCmdQuery(''); setCmdSelIdx(0); setShowCmdPalette(true);
         setTimeout(() => cmdInputRef.current?.focus(), 30);
@@ -1301,6 +1319,13 @@ ${parseMarkdown(content)}
     setDefaultAlignState(a);
     localStorage.setItem('tn_align', a);
   };
+  const toggleFeature = (key: keyof Features) => {
+    setFeatures((f) => {
+      const next = { ...f, [key]: !f[key] };
+      localStorage.setItem('tn_features', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // ── Folder operations ─────────────────────────────────────────
   const createFolder = async () => {
@@ -1591,7 +1616,7 @@ ${parseMarkdown(content)}
           {tabLoading && <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />}
 
           {/* Writing streak */}
-          {streak >= 2 && (
+          {features.writingStreak && streak >= 2 && (
             <div className="tn-streak-badge" title={`${streak}-day writing streak! Keep it up.`}>
               🔥 {streak}
             </div>
@@ -1608,11 +1633,13 @@ ${parseMarkdown(content)}
             <div className="tn-synced-toast">✓ All synced</div>
           )}
 
-          <button
-            className={`sp-icon-btn${view === 'graph' ? ' active' : ''}`}
-            onClick={() => setView(view === 'graph' ? 'note' : 'graph')}
-            title="Note graph view"
-          >⬡</button>
+          {features.noteGraph && (
+            <button
+              className={`sp-icon-btn${view === 'graph' ? ' active' : ''}`}
+              onClick={() => setView(view === 'graph' ? 'note' : 'graph')}
+              title="Note graph view"
+            >⬡</button>
+          )}
           <button className="sp-icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
             {theme === 'dark' ? '☀' : '☽'}
           </button>
@@ -1869,7 +1896,7 @@ ${parseMarkdown(content)}
                 />
 
                 {/* ── Formatting toolbar ── */}
-                {!preview && (
+                {!preview && features.formattingBar && (
                   <div className="sp-fmt-toolbar" ref={fmtRef}>
                     <button className="sp-fmt-btn sp-fmt-bold"
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('**', '**'); }}
@@ -1978,7 +2005,7 @@ ${parseMarkdown(content)}
                         if (e.key === 'u') { e.preventDefault(); wrapSel('<u>', '</u>'); }
                       }}
                     />
-                    {wikiQuery !== null && (
+                    {features.wikiLinks && wikiQuery !== null && (
                       <div className="tn-wiki-suggest">
                         {allNotes
                           .filter((n) => n.id !== activeNoteId && (n.title || n.content.split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase()))
@@ -2000,7 +2027,7 @@ ${parseMarkdown(content)}
                 )}
 
                 {/* ── Smart suggestions ── */}
-                {suggestions.length > 0 && (
+                {features.smartSuggestions && suggestions.length > 0 && (
                   <div className="sp-suggestions">
                     <span className="sp-suggestions-label">Related</span>
                     {suggestions.map((n) => (
@@ -2686,6 +2713,34 @@ ${parseMarkdown(content)}
         {view === 'settings' && (
           <div className="sp-settings-view">
             <div className="sp-settings-section">
+              <div className="sp-settings-label">Active Features</div>
+              {(
+                [
+                  { key: 'formattingBar',    label: 'Formatting Toolbar',  desc: 'B / I / U / color bar above the editor' },
+                  { key: 'smartSuggestions', label: 'Smart Suggestions',   desc: 'Related notes appear while you write' },
+                  { key: 'writingStreak',    label: 'Writing Streak',      desc: '🔥 Day-streak badge in the header' },
+                  { key: 'wikiLinks',        label: 'Wiki Links',          desc: '[[Note name]] autocomplete' },
+                  { key: 'cmdPalette',       label: 'Command Palette',     desc: 'Ctrl+K quick actions' },
+                  { key: 'chatView',         label: 'Ask Your Notes',      desc: 'AI chat tab powered by Groq' },
+                  { key: 'noteGraph',        label: 'Note Graph',          desc: 'Visual relationship graph (⬡ button)' },
+                ] as { key: keyof Features; label: string; desc: string }[]
+              ).map((f) => (
+                <div key={f.key} className="sp-settings-row" style={{ marginTop: 8 }}>
+                  <div className="sp-settings-row-info">
+                    <div className="sp-settings-row-title">{f.label}</div>
+                    <div className="sp-settings-row-desc">{f.desc}</div>
+                  </div>
+                  <button
+                    className={`sp-toggle ${features[f.key] ? 'on' : 'off'}`}
+                    onClick={() => toggleFeature(f.key)}
+                  >
+                    <div className="sp-toggle-knob" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="sp-settings-section">
               <div className="sp-settings-label">AI Assistant</div>
               <div className="sp-settings-row-info" style={{ marginBottom: 10 }}>
                 <div className="sp-settings-row-title">Groq API Key</div>
@@ -3074,11 +3129,13 @@ ${parseMarkdown(content)}
             </span>
           )}
         </button>
-        <button className={`sp-nav-btn${view === 'chat' ? ' active' : ''}`} onClick={() => setView('chat')}>
-          <span className="sp-nav-icon">💬</span>
-          <span className="sp-nav-label">Ask</span>
-          {groqKey && <span className="sp-nav-ai-dot" />}
-        </button>
+        {features.chatView && (
+          <button className={`sp-nav-btn${view === 'chat' ? ' active' : ''}`} onClick={() => setView('chat')}>
+            <span className="sp-nav-icon">💬</span>
+            <span className="sp-nav-label">Ask</span>
+            {groqKey && <span className="sp-nav-ai-dot" />}
+          </button>
+        )}
         <button className={`sp-nav-btn${view === 'settings' ? ' active' : ''}`} onClick={() => setView('settings')}>
           <span className="sp-nav-icon">⚙</span>
           <span className="sp-nav-label">Settings</span>
