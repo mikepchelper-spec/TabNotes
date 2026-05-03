@@ -1616,8 +1616,8 @@ ${parseMarkdown(content)}
         const p = parsed.prefs;
         if (p.colors   != null) { localStorage.setItem('tn_colors',   JSON.stringify(p.colors));   setNoteColors(p.colors); }
         if (p.pins     != null) { localStorage.setItem('tn_pins',     JSON.stringify(p.pins));     setPinnedNotes(new Set(p.pins)); }
-        if (p.fontsize != null) { localStorage.setItem('tn_fontsize', String(p.fontsize));         setFontSize(p.fontsize); }
-        if (p.align    != null) { localStorage.setItem('tn_align',    p.align);                    setAlign(p.align); }
+        if (p.fontsize != null) { localStorage.setItem('tn_fontsize', String(p.fontsize));         setFontSizeState(p.fontsize); }
+        if (p.align    != null) { localStorage.setItem('tn_align',    p.align);                    setDefaultAlignState(p.align); }
         if (p.features != null) { localStorage.setItem('tn_features', JSON.stringify(p.features)); setFeatures((prev) => ({ ...prev, ...p.features })); }
         if (p.digest           != null) cr?.storage?.local?.set({ tn_digest: p.digest });
         if (p.streak           != null) cr?.storage?.local?.set({ tn_streak: p.streak });
