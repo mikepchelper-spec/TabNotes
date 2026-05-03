@@ -343,8 +343,10 @@ export default function SidePanelApp() {
   const [pinnedNotes, setPinnedNotes] = useState<Set<string>>(new Set());
   const [colorPickerNoteId, setColorPickerNoteId] = useState<string | null>(null);
 
-  // Font size: 12 | 13 | 15
+  // Font size: 11–16
   const [fontSize, setFontSizeState] = useState<number>(13);
+  // Default text alignment
+  const [defaultAlign, setDefaultAlignState] = useState<'left'|'center'|'right'>('left');
 
   // Focus mode (hides all chrome, just editor)
   const [focusMode, setFocusMode] = useState(false);
@@ -386,6 +388,8 @@ export default function SidePanelApp() {
       if (pins) setPinnedNotes(new Set(JSON.parse(pins)));
       const fs = localStorage.getItem('tn_fontsize');
       if (fs) setFontSizeState(Number(fs));
+      const al = localStorage.getItem('tn_align') as 'left'|'center'|'right'|null;
+      if (al) setDefaultAlignState(al);
     } catch { /* ignore */ }
   }, []);
 
@@ -1293,6 +1297,10 @@ ${parseMarkdown(content)}
     setFontSizeState(next);
     localStorage.setItem('tn_fontsize', String(next));
   };
+  const setDefaultAlign = (a: 'left'|'center'|'right') => {
+    setDefaultAlignState(a);
+    localStorage.setItem('tn_align', a);
+  };
 
   // ── Folder operations ─────────────────────────────────────────
   const createFolder = async () => {
@@ -1879,19 +1887,6 @@ ${parseMarkdown(content)}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('`', '`'); }}
                       title="Inline code">{'</>'}</button>
                     <div className="sp-fmt-sep" />
-                    {/* Font size */}
-                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); changeFontSize(-1); }} title="Decrease font size"
-                      style={{ fontSize: 11, letterSpacing: '-.5px' }}>A−</button>
-                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); changeFontSize(1); }} title="Increase font size"
-                      style={{ fontSize: 13, fontWeight: 700 }}>A+</button>
-                    <div className="sp-fmt-sep" />
-                    {/* Alignment */}
-                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); wrapAlign('left'); }} title="Align left">⬛</button>
-                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); wrapAlign('center'); }} title="Align center"
-                      style={{ letterSpacing: -1 }}>▐█▌</button>
-                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); wrapAlign('right'); }} title="Align right"
-                      style={{ fontSize: 10 }}>▶▶</button>
-                    <div className="sp-fmt-sep" />
                     {/* Text color */}
                     <div style={{ position: 'relative' }}>
                       <button className="sp-fmt-btn sp-fmt-color-btn"
@@ -1975,7 +1970,7 @@ ${parseMarkdown(content)}
                       }}
                       placeholder={`Note for this ${scope}…`}
                       disabled={tabLoading}
-                      style={{ fontSize: fontSize, ...(activeNoteColor ? { background: activeNoteColor } : {}) }}
+                      style={{ fontSize: fontSize, textAlign: defaultAlign, ...(activeNoteColor ? { background: activeNoteColor } : {}) }}
                       onKeyDown={(e) => {
                         if (!(e.ctrlKey || e.metaKey)) return;
                         if (e.key === 'b') { e.preventDefault(); wrapSel('**', '**'); }
@@ -2749,6 +2744,8 @@ ${parseMarkdown(content)}
 
             <div className="sp-settings-section">
               <div className="sp-settings-label">Editor</div>
+
+              {/* Markdown preview toggle */}
               <div className="sp-settings-row">
                 <div className="sp-settings-row-info">
                   <div className="sp-settings-row-title">Markdown Preview</div>
@@ -2757,6 +2754,39 @@ ${parseMarkdown(content)}
                 <button className={`sp-toggle ${markdownEnabled ? 'on' : 'off'}`} onClick={() => setMarkdown(!markdownEnabled)}>
                   <div className="sp-toggle-knob" />
                 </button>
+              </div>
+
+              {/* Font size */}
+              <div className="sp-settings-row" style={{ marginTop: 10 }}>
+                <div className="sp-settings-row-info">
+                  <div className="sp-settings-row-title">Font Size</div>
+                  <div className="sp-settings-row-desc">Editor text size</div>
+                </div>
+                <div className="sp-fontsize-control">
+                  <button className="sp-fontsize-btn" onClick={() => changeFontSize(-1)} disabled={fontSize <= 11}>A−</button>
+                  <span className="sp-fontsize-val">{fontSize}px</span>
+                  <button className="sp-fontsize-btn" onClick={() => changeFontSize(1)} disabled={fontSize >= 16}>A+</button>
+                </div>
+              </div>
+
+              {/* Text alignment */}
+              <div className="sp-settings-row" style={{ marginTop: 10 }}>
+                <div className="sp-settings-row-info">
+                  <div className="sp-settings-row-title">Text Alignment</div>
+                  <div className="sp-settings-row-desc">Default alignment for the editor</div>
+                </div>
+                <div className="sp-align-control">
+                  {(['left','center','right'] as const).map((a) => (
+                    <button
+                      key={a}
+                      className={`sp-align-btn${defaultAlign === a ? ' active' : ''}`}
+                      onClick={() => setDefaultAlign(a)}
+                      title={`Align ${a}`}
+                    >
+                      {a === 'left' ? '⬤◯◯' : a === 'center' ? '◯⬤◯' : '◯◯⬤'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
