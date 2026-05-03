@@ -22,7 +22,8 @@
 
 | Version | What's new | Download |
 |---|---|---|
-| **v2.8.9** *(latest)* | Full backup/restore · Backup reminders · Active format indicators | [**⬇ Download v2.8.9**](https://github.com/mikepchelper-spec/TabNotes/releases/download/v2.8.9/tabnotes-extension-v2.8.9.zip) |
+| **v2.9.0** *(latest)* | Scroll fix · Clip-to-note button · Release generation repair | [**⬇ Download v2.9.0**](https://github.com/mikepchelper-spec/TabNotes/releases/download/v2.9.0/tabnotes-extension-v2.9.0.zip) |
+| v2.8.9 | Full backup/restore · Backup reminders · Active format indicators | [Download v2.8.9](https://github.com/mikepchelper-spec/TabNotes/releases/download/v2.8.9/tabnotes-extension-v2.8.9.zip) |
 | v2.8.5 | Formatting toggles (B/I/U/S/H/code) | [Releases page](https://github.com/mikepchelper-spec/TabNotes/releases) |
 | v2.8.2 | About page · Feature docs | [Releases page](https://github.com/mikepchelper-spec/TabNotes/releases) |
 
