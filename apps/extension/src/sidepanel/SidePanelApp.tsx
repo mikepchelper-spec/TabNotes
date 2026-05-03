@@ -102,8 +102,18 @@ function parseMarkdown(text: string): string {
     .replace(/<p><\/p>/g, '');
 }
 
+function stripFormatting(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, '')        // strip HTML tags
+    .replace(/~~|__|\*\*|\*|`/g, '') // strip markdown markers
+    .replace(/&[a-z]+;/gi, ' ')     // strip HTML entities
+    .trim();
+}
+
 function autoTitleFromContent(c: string): string {
-  const first = c.trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^- \[.?\] /, '').trim();
+  const first = stripFormatting(
+    c.trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^- \[.?\] /, '').trim()
+  );
   return first.slice(0, 60);
 }
 
@@ -148,7 +158,7 @@ function NoteGraph({ notes, activeId, onSelect }: {
   const nodes = others.map((n, i) => {
     const angle = (i / Math.max(others.length, 1)) * 2 * Math.PI - Math.PI / 2;
     const r = 105;
-    const label = (n.title || n.content.trim().split('\n')[0]).slice(0, 10);
+    const label = stripFormatting(n.title || n.content.trim().split('\n')[0]).slice(0, 10);
     const linked = wikiLinks.has((n.title || '').toLowerCase());
     const shared = active ? active.tags.filter((t) => n.tags.includes(t)).length : 0;
     return { note: n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), label, linked, shared };
@@ -214,10 +224,10 @@ const DEFAULT_FEATURES: Features = {
 type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
 function pillLabel(n: Note, idx: number): string {
-  if (n.title?.trim()) return n.title.trim();
+  if (n.title?.trim()) return stripFormatting(n.title.trim()).slice(0, 18) || `Note ${idx + 1}`;
   if (n.content.trim()) {
-    const first = n.content.trim().split('\n')[0];
-    return first.length > 18 ? first.slice(0, 18) + '…' : first;
+    const first = stripFormatting(n.content.trim().split('\n')[0]);
+    return first.length > 18 ? first.slice(0, 18) + '…' : first || `Note ${idx + 1}`;
   }
   return `Note ${idx + 1}`;
 }
@@ -1472,8 +1482,8 @@ ${parseMarkdown(content)}
       ? allNotes.filter((n) => `${n.title ?? ''} ${n.content}`.toLowerCase().includes(q)).slice(0, 8)
       : [...allNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
     notePool.forEach((n) => items.push({
-      label: n.title || n.content.split('\n')[0] || 'Untitled',
-      sublabel: n.content.replace(/\n+/g, ' ').slice(0, 72).trim(),
+      label: stripFormatting(n.title || n.content.split('\n')[0]) || 'Untitled',
+      sublabel: stripFormatting(n.content.replace(/\n+/g, ' ')).slice(0, 72).trim(),
       icon: n.encrypted ? '🔒' : '📝',
       run: () => { selectNote(n); setView('note'); },
     }));
