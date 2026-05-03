@@ -207,7 +207,7 @@ function NoteGraph({ notes, activeId, onSelect }: {
           <circle cx={cx} cy={cy} r={26} fill="#2b5be8" />
           <text x={cx} y={cy + 4} textAnchor="middle" fontSize={9} fill="#fff"
             fontFamily="system-ui,sans-serif" fontWeight="600">
-            {(active.title || active.content.split('\n')[0]).slice(0, 13)}
+            {(active.title || stripFormatting(active.content).split('\n')[0]).slice(0, 13)}
           </text>
         </g>
       )}
@@ -240,8 +240,9 @@ type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
 function pillLabel(n: Note, idx: number): string {
   if (n.title?.trim()) return stripFormatting(n.title.trim()).slice(0, 18) || `Note ${idx + 1}`;
-  if (n.content.trim()) {
-    const first = stripFormatting(n.content.trim().split('\n')[0]);
+  const plain = stripFormatting(n.content);
+  if (plain.trim()) {
+    const first = plain.split('\n')[0];
     return first.length > 18 ? first.slice(0, 18) + '…' : first || `Note ${idx + 1}`;
   }
   return `Note ${idx + 1}`;
@@ -1109,9 +1110,9 @@ ${parseMarkdown(content)}
   // ── Smart suggestions: debounced related-note lookup ──────────
   React.useEffect(() => {
     if (suggDebounceRef.current) clearTimeout(suggDebounceRef.current);
-    if (!content.trim() || view !== 'note' || allNotes.length < 2) { setSuggestions([]); return; }
+    if (!stripFormatting(content).trim() || view !== 'note' || allNotes.length < 2) { setSuggestions([]); return; }
     suggDebounceRef.current = setTimeout(() => {
-      const words = content.split(/\s+/).slice(-30).join(' ');
+      const words = stripFormatting(content).split(/\s+/).slice(-30).join(' ');
       const qWords = words.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
       if (qWords.length === 0) { setSuggestions([]); return; }
       const ranked = [...allNotes]
@@ -1158,7 +1159,7 @@ ${parseMarkdown(content)}
     const relevant = rankNotes(pool, q);
     const scopeLabel = chatScope === 'domain' ? `domain: ${currentDomain || 'current site'}` : 'all notes';
     const contextStr = relevant.length > 0
-      ? relevant.map((n) => `### ${n.title || 'Untitled'}\n${n.content.slice(0, 800)}`).join('\n\n---\n\n')
+      ? relevant.map((n) => `### ${n.title || 'Untitled'}\n${stripFormatting(n.content).slice(0, 800)}`).join('\n\n---\n\n')
       : '(no notes found)';
     const system = `You are a personal knowledge assistant. Answer ONLY based on the user's notes below. If the answer isn't there, say so clearly. Be direct and concise.\n\nNotes from ${scopeLabel}:\n---\n${contextStr}\n---`;
 
@@ -1949,12 +1950,13 @@ ${parseMarkdown(content)}
                   value={title}
                   onChange={(e) => { setTitle(e.target.value); schedule(content, e.target.value, tags); }}
                   onBlur={() => {
-                    if (!title.trim() && content.trim()) {
-                      const auto = autoTitleFromContent(content);
+                    const plainContent = stripFormatting(content);
+                    if (!title.trim() && plainContent.trim()) {
+                      const auto = autoTitleFromContent(plainContent);
                       if (auto) { setTitle(auto); schedule(content, auto, tags); }
                     }
                   }}
-                  placeholder={content.trim() ? autoTitleFromContent(content) || 'Title…' : 'Title…'}
+                  placeholder={stripFormatting(content).trim() ? autoTitleFromContent(stripFormatting(content)) || 'Title…' : 'Title…'}
                   disabled={tabLoading}
                 />
 
@@ -1999,7 +2001,7 @@ ${parseMarkdown(content)}
                         const wiki = (wl.dataset.wiki ?? '').toLowerCase();
                         const target = allNotes.find((n) =>
                           (n.title ?? '').toLowerCase() === wiki ||
-                          n.content.trim().split('\n')[0].toLowerCase() === wiki
+                          stripFormatting(n.content).split('\n')[0].toLowerCase() === wiki
                         );
                         if (target) { selectNote(target); setView('note'); }
                         return;
@@ -2028,6 +2030,8 @@ ${parseMarkdown(content)}
                       style={{ fontSize: fontSize, textAlign: defaultAlign as React.CSSProperties['textAlign'], ...(activeNoteColor ? { background: activeNoteColor, color: '#1a1a1a' } : {}) }}
                       onInput={(e) => {
                         const el = e.currentTarget;
+                        // Chrome leaves <br> in empty contentEditable — normalize to ''
+                        if (el.innerHTML === '<br>') el.innerHTML = '';
                         const html = el.innerHTML;
                         setContent(html);
                         schedule(html, title, tags);
@@ -2061,17 +2065,17 @@ ${parseMarkdown(content)}
                     {features.wikiLinks && wikiQuery !== null && (
                       <div className="tn-wiki-suggest">
                         {allNotes
-                          .filter((n) => n.id !== activeNoteId && (n.title || n.content.split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase()))
+                          .filter((n) => n.id !== activeNoteId && (n.title || stripFormatting(n.content).split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase()))
                           .slice(0, 6)
                           .map((n) => {
-                            const label = n.title || n.content.split('\n')[0];
+                            const label = n.title || stripFormatting(n.content).split('\n')[0];
                             return (
                               <button key={n.id} className="tn-wiki-item" onMouseDown={(e) => { e.preventDefault(); insertWikiLink(label); }}>
                                 {label.slice(0, 45)}
                               </button>
                             );
                           })}
-                        {allNotes.filter((n) => n.id !== activeNoteId && (n.title || n.content.split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase())).length === 0 && (
+                        {allNotes.filter((n) => n.id !== activeNoteId && (n.title || stripFormatting(n.content).split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase())).length === 0 && (
                           <span className="tn-wiki-empty">No matching notes</span>
                         )}
                       </div>
@@ -2088,7 +2092,7 @@ ${parseMarkdown(content)}
                         key={n.id}
                         className="sp-suggestion-item"
                         onClick={() => { selectNote(n); setSuggestions([]); }}
-                        title={n.content.slice(0, 120)}
+                        title={stripFormatting(n.content).slice(0, 120)}
                       >
                         <span className="sp-suggestion-title">
                           {stripFormatting(n.title || n.content.split('\n')[0]).slice(0, 36) || 'Untitled'}
@@ -2111,13 +2115,13 @@ ${parseMarkdown(content)}
                 </div>
 
                 <div className="sp-note-meta">
-                  <span className="sp-note-meta-text">{content.split(/\s+/).filter(Boolean).length}w</span>
+                  <span className="sp-note-meta-text">{stripFormatting(content).split(/\s+/).filter(Boolean).length}w</span>
                   <span className="sp-note-meta-sep">·</span>
-                  <span className="sp-note-meta-text">{content.length}ch</span>
-                  {readingTime(content) && (
+                  <span className="sp-note-meta-text">{stripFormatting(content).length}ch</span>
+                  {readingTime(stripFormatting(content)) && (
                     <>
                       <span className="sp-note-meta-sep">·</span>
-                      <span className="sp-note-meta-text">{readingTime(content)}</span>
+                      <span className="sp-note-meta-text">{readingTime(stripFormatting(content))}</span>
                     </>
                   )}
                   <span className="sp-note-meta-spacer" />
@@ -2273,7 +2277,7 @@ ${parseMarkdown(content)}
                               }}
                             >
                               <span className="sp-history-time">{formatRelativeTime(v.savedAt)}</span>
-                              <span className="sp-history-preview">{v.content.trim().slice(0, 55) || '(empty)'}</span>
+                              <span className="sp-history-preview">{stripFormatting(v.content).slice(0, 55) || '(empty)'}</span>
                             </button>
                           ))}
                         </div>
@@ -2368,7 +2372,7 @@ ${parseMarkdown(content)}
                       onClick={() => setRefNoteId(n.id)}
                     >
                       <span className="sp-ref-note-label">{pillLabel(n, i)}</span>
-                      <span className="sp-ref-note-preview">{n.content.trim().slice(0, 60) || '—'}</span>
+                      <span className="sp-ref-note-preview">{stripFormatting(n.content).slice(0, 60) || '—'}</span>
                     </button>
                   ))
                 )}
@@ -2380,7 +2384,7 @@ ${parseMarkdown(content)}
                   >
                     <span className="sp-ref-note-label">{pillLabel(n, i)}</span>
                     <span className="sp-ref-note-preview" style={{ color: 'var(--text-subtle)' }}>
-                      {n.scope} · {n.content.trim().slice(0, 40) || '—'}
+                      {n.scope} · {stripFormatting(n.content).slice(0, 40) || '—'}
                     </span>
                   </button>
                 ))}
