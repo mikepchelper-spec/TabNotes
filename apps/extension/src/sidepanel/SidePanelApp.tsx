@@ -1980,7 +1980,7 @@ ${parseMarkdown(content)}
                 {preview && markdownEnabled ? (
                   <div
                     className="sp-markdown-preview"
-                    style={activeNoteColor ? { background: activeNoteColor } : undefined}
+                    style={activeNoteColor ? { background: activeNoteColor, color: '#1a1a1a' } : undefined}
                     dangerouslySetInnerHTML={{ __html: content ? parseMarkdown(content) : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>' }}
                     onClick={(e) => {
                       const t = e.target as HTMLElement;
@@ -2025,7 +2025,7 @@ ${parseMarkdown(content)}
                       }}
                       placeholder={`Note for this ${scope}…`}
                       disabled={tabLoading}
-                      style={{ fontSize: fontSize, textAlign: defaultAlign, ...(activeNoteColor ? { background: activeNoteColor } : {}) }}
+                      style={{ fontSize: fontSize, textAlign: defaultAlign, ...(activeNoteColor ? { background: activeNoteColor, color: '#1a1a1a' } : {}) }}
                       onKeyDown={(e) => {
                         if (!(e.ctrlKey || e.metaKey)) return;
                         if (e.key === 'b') { e.preventDefault(); wrapSel('**', '**'); }
@@ -2066,7 +2066,7 @@ ${parseMarkdown(content)}
                         title={n.content.slice(0, 120)}
                       >
                         <span className="sp-suggestion-title">
-                          {(n.title || n.content.split('\n')[0]).slice(0, 36) || 'Untitled'}
+                          {stripFormatting(n.title || n.content.split('\n')[0]).slice(0, 36) || 'Untitled'}
                         </span>
                       </button>
                     ))}
