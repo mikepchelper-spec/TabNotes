@@ -5,7 +5,7 @@ import {
   normalizeUrl, normalizeDomain, formatRelativeTime, searchNotes,
   exportData, importData,
 } from '@tabnotes/shared';
-import type { ExportData } from '@tabnotes/shared';
+import type { ExportData, ExportPrefs } from '@tabnotes/shared';
 import './sidepanel.css';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1545,6 +1545,31 @@ ${parseMarkdown(content)}
     try {
       const data = await adapter.current.get();
       const payload = exportData(data);
+
+      // Gather all preferences so a full restore is possible after reinstall
+      const prefs: ExportPrefs = {};
+      const colors  = localStorage.getItem('tn_colors');
+      const pins    = localStorage.getItem('tn_pins');
+      const fs      = localStorage.getItem('tn_fontsize');
+      const al      = localStorage.getItem('tn_align');
+      const ft      = localStorage.getItem('tn_features');
+      if (colors)  prefs.colors   = JSON.parse(colors);
+      if (pins)    prefs.pins     = JSON.parse(pins);
+      if (fs)      prefs.fontsize = Number(fs);
+      if (al)      prefs.align    = al as ExportPrefs['align'];
+      if (ft)      prefs.features = JSON.parse(ft);
+
+      // chrome.storage.local prefs (digest + streak)
+      await new Promise<void>((resolve) => {
+        cr?.storage?.local?.get(['tn_digest', 'tn_streak'], (res: Record<string, unknown>) => {
+          if (res?.tn_digest)  prefs.digest  = res.tn_digest as ExportPrefs['digest'];
+          if (res?.tn_streak)  prefs.streak  = res.tn_streak as ExportPrefs['streak'];
+          resolve();
+        });
+      });
+
+      payload.prefs = prefs;
+
       const json = JSON.stringify(payload, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -1567,9 +1592,24 @@ ${parseMarkdown(content)}
       const text = await file.text();
       const parsed = JSON.parse(text) as ExportData;
       if (!Array.isArray(parsed.notes)) throw new Error('Invalid format');
+
+      // Restore notes + workspaces
       const current = await adapter.current.get();
       const merged = importData(parsed, current);
       await adapter.current.set({ notes: merged.notes, workspaces: merged.workspaces });
+
+      // Restore preferences if present in backup
+      if (parsed.prefs) {
+        const p = parsed.prefs;
+        if (p.colors   != null) { localStorage.setItem('tn_colors',   JSON.stringify(p.colors));   setNoteColors(p.colors); }
+        if (p.pins     != null) { localStorage.setItem('tn_pins',     JSON.stringify(p.pins));     setPinnedNotes(new Set(p.pins)); }
+        if (p.fontsize != null) { localStorage.setItem('tn_fontsize', String(p.fontsize));         setFontSize(p.fontsize); }
+        if (p.align    != null) { localStorage.setItem('tn_align',    p.align);                    setAlign(p.align); }
+        if (p.features != null) { localStorage.setItem('tn_features', JSON.stringify(p.features)); setFeatures((prev) => ({ ...prev, ...p.features })); }
+        if (p.digest   != null) cr?.storage?.local?.set({ tn_digest: p.digest });
+        if (p.streak   != null) cr?.storage?.local?.set({ tn_streak: p.streak });
+      }
+
       const [notes, wsList] = await Promise.all([
         noteSvc.current.getAllNotes(),
         wsSvc.current.getAll(),

@@ -41,9 +41,20 @@ export interface StorageData {
   version: number;
 }
 
+export interface ExportPrefs {
+  colors?: Record<string, string>;
+  pins?: string[];
+  fontsize?: number;
+  align?: 'left' | 'center' | 'right';
+  features?: Record<string, boolean>;
+  digest?: { enabled?: boolean; time?: string };
+  streak?: { count?: number; lastDate?: string };
+}
+
 export interface ExportData {
   version: number;
   exportedAt: number;
   notes: Note[];
   workspaces: Workspace[];
+  prefs?: ExportPrefs;
 }
