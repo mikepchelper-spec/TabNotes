@@ -835,6 +835,24 @@ export default function SidePanelApp() {
     setSaved(false); setPreview(false); setConfirmDelete(false);
   };
 
+  const updateStreak = React.useCallback(async () => {
+    if (!cr?.storage?.local) return;
+    const today = new Date().toISOString().split('T')[0];
+    const sr = await new Promise<Record<string, unknown>>((res) =>
+      cr.storage.local.get('tn_streak', res)
+    );
+    const s = sr['tn_streak'] as { count?: number; lastDate?: string } | undefined;
+    if (s?.lastDate === today) return;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+    const newCount = s?.lastDate === yStr ? (s.count ?? 0) + 1 : 1;
+    await new Promise<void>((res) =>
+      cr.storage.local.set({ tn_streak: { count: newCount, lastDate: today } }, res)
+    );
+    setStreak(newCount);
+  }, []);
+
   const addNoteToContext = async () => {
     const url = currentUrlRef.current;
     if (!url || url.startsWith('chrome://')) return;
@@ -1132,25 +1150,6 @@ ${parseMarkdown(content)}
   React.useEffect(() => {
     if (view === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, view]);
-
-  // ── Writing Streak update ─────────────────────────────────────
-  const updateStreak = React.useCallback(async () => {
-    if (!cr?.storage?.local) return;
-    const today = new Date().toISOString().split('T')[0];
-    const sr = await new Promise<Record<string, unknown>>((res) =>
-      cr.storage.local.get('tn_streak', res)
-    );
-    const s = sr['tn_streak'] as { count?: number; lastDate?: string } | undefined;
-    if (s?.lastDate === today) return; // already counted today
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toISOString().split('T')[0];
-    const newCount = s?.lastDate === yStr ? (s.count ?? 0) + 1 : 1;
-    await new Promise<void>((res) =>
-      cr.storage.local.set({ tn_streak: { count: newCount, lastDate: today } }, res)
-    );
-    setStreak(newCount);
-  }, []);
 
   // ── Wiki link autocomplete ───────────────────────────────────
   const insertWikiLink = (noteTitle: string) => {
