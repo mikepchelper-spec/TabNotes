@@ -1,19 +1,112 @@
+<div align="center">
+
 # TabNotes
 
-> Beautiful, premium, local-first contextual notes per tab, URL, domain, and workspace.
+**Premium local-first notes for every tab, URL, domain, and workspace.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)](#)
+[![MV3](https://img.shields.io/badge/Manifest-V3-2b5be8)](#)
+[![Local-first](https://img.shields.io/badge/Data-Local--first-22c55e)](#)
+[![No Account](https://img.shields.io/badge/Account-Not%20required-f97316)](#)
 
-## Vision
+*Notes that know where you are.*
 
-TabNotes is a Chrome extension (Manifest V3) that keeps contextual notes right where you need them — one click away, always in context. Start local-first with no account required. Upgrade to Pro for cloud sync across all devices.
+</div>
+
+---
+
+## What is TabNotes?
+
+TabNotes is a Chrome extension (Manifest V3) that keeps contextual notes right where you need them — one click away, always in context. Every note is automatically attached to its context: a URL, a domain, a workspace, or the whole browser. No logins, no servers, no tracking. Your data stays in your browser.
+
+---
+
+## Features
+
+### ✍️ Editor
+
+| Feature | Description |
+|---|---|
+| **WYSIWYG Rich Text** | True rich text editing — bold, italic, underline, strikethrough, inline code, and highlight render as you type |
+| **Keyboard Shortcuts** | `Ctrl+B` bold · `Ctrl+I` italic · `Ctrl+U` underline |
+| **Markdown Preview** | Toggle between rich edit mode and a rendered markdown view (`↓md`) |
+| **Typewriter Mode** | Keeps the current line centered on screen for distraction-free writing |
+| **Text Alignment** | Left, center, right, or justify any paragraph |
+| **Font Size** | `A–` / `A+` controls for comfortable reading |
+| **Date/Time Stamp** | Insert current date and time with `Ctrl+D` or the calendar button |
+
+### 📂 Note Organization
+
+| Feature | Description |
+|---|---|
+| **4 Scopes** | **URL** (exact page) · **Domain** (whole site) · **Workspace** (your project) · **Global** (always available) |
+| **Multiple Notes per Scope** | Create as many notes as you need — navigate them with pills |
+| **Workspaces** | Group notes into named projects and switch context instantly |
+| **Folders** | Further organize notes within any scope |
+| **Tags** | Add comma-separated tags and filter notes by them |
+| **Pin Notes** | Pin important notes to the top of any list |
+| **Note Colors** | Color-code note backgrounds for visual organization |
+
+### ⚡ Productivity
+
+| Feature | Description |
+|---|---|
+| **Templates** | One-click templates: Daily Log, Meeting Notes, To-Do, Daily Standup |
+| **Wiki Links** | Type `[[Note name]]` to link notes together with autocomplete |
+| **Command Palette** | `Ctrl+K` to instantly jump to any note, action, or view |
+| **Web Clipper** | Select any text on a webpage and clip it directly into your note |
+| **Writing Streak** | Daily writing habit tracker with a fire streak badge |
+| **Reminders** | Set a reminder on any note and get notified at the right time |
+| **Daily Digest** | Morning summary of your recent notes delivered as a notification |
+
+### 🧠 Intelligence
+
+| Feature | Description |
+|---|---|
+| **Smart Suggestions** | Related notes surface automatically as you write |
+| **AI Chat (Ask)** | Ask questions about your notes in natural language — powered by Groq |
+| **Note Graph** | Visual graph showing connections between your notes via wiki links and tags |
+
+### 🔒 Data & Privacy
+
+| Feature | Description |
+|---|---|
+| **Note History** | Every note is auto-versioned — restore any previous version with one click |
+| **Export as Markdown** | Download any note as a clean `.md` file |
+| **Export / Import JSON** | Back up all notes as JSON and restore them on any device |
+| **Local-first** | All data lives in Chrome storage — no server, no account, no tracking |
+| **Note Encryption** | Encrypt individual notes with AES-256 and a personal password |
+| **Open Source** | MIT licensed — read, fork, contribute |
+
+### 🎨 User Experience
+
+| Feature | Description |
+|---|---|
+| **Dark / Light / System Theme** | Follows your OS or set it manually |
+| **Companion Web App** | Full-featured notes dashboard accessible from any browser |
+| **Context-aware UI** | Scope bar auto-detects your current URL and shows the right notes |
+| **Feature Flags** | Turn any feature on or off from Settings |
+
+---
+
+## Quick Install
+
+1. Download the latest ZIP from [Releases](https://github.com/mikepchelner-spec/TabNotes/releases)
+2. Unzip to get the `dist/` folder
+3. Open Chrome → `chrome://extensions`
+4. Enable **Developer mode** (top-right toggle)
+5. Click **Load unpacked** → select the `dist/` folder
+6. The TabNotes icon appears in your toolbar — pin it for easy access
+
+---
 
 ## Repo Structure
 
 ```
 tabnotes/
 ├── apps/
-│   ├── extension/       # MV3 Chrome extension (React + TypeScript + Vite)
+│   ├── extension/       # MV3 Chrome extension  (React + TypeScript + Vite)
 │   └── web/             # Companion web app / PWA (React + Vite)
 ├── packages/
 │   ├── shared/          # Shared types, storage abstractions, utilities
@@ -22,11 +115,14 @@ tabnotes/
 └── README.md
 ```
 
-## Local Setup
+---
+
+## Local Development
 
 ### Prerequisites
+
 - Node.js 20+
-- pnpm 9+
+- pnpm 10+
 
 ### Install
 
@@ -34,13 +130,13 @@ tabnotes/
 pnpm install
 ```
 
-### Development
+### Run
 
 ```bash
-# Web app (dashboard) — runs on http://localhost:5000
+# Web app — runs on http://localhost:5000
 pnpm dev
 
-# Extension (build watch mode)
+# Extension — build watch mode
 pnpm --filter @tabnotes/extension dev
 ```
 
@@ -50,122 +146,34 @@ pnpm --filter @tabnotes/extension dev
 # Build everything
 pnpm build
 
-# Build only the extension
+# Extension only → apps/extension/dist/
 pnpm build:extension
 
-# Build only the web app
+# Web app only
 pnpm build:web
 ```
 
-### Other scripts
+### Load in Chrome
 
 ```bash
-pnpm lint        # ESLint across all packages
-pnpm typecheck   # TypeScript check across all packages
-pnpm format      # Prettier formatting
+pnpm build:extension
+# Open chrome://extensions → Load unpacked → select apps/extension/dist/
 ```
 
-## Loading the Extension in Chrome
+---
 
-1. Run `pnpm build:extension`
-2. Open Chrome → `chrome://extensions`
-3. Enable **Developer mode** (top right toggle)
-4. Click **Load unpacked**
-5. Select the `apps/extension/dist/` folder
-6. The TabNotes icon appears in your toolbar
+## Tech Stack
 
-## Data Model
+| Layer | Technology |
+|---|---|
+| Extension | React 18 · TypeScript 5 · Vite 5 · Chrome MV3 |
+| Web App | React 18 · TypeScript 5 · Vite 5 · React Router |
+| Storage | `chrome.storage.local` (extension) · `localStorage` (web) |
+| AI | Groq API (user-supplied key) |
+| Monorepo | pnpm workspaces |
 
-### Note
-```typescript
-{
-  id: string
-  workspaceId: string | null
-  scope: 'url' | 'domain' | 'workspace' | 'global'
-  scopeKey: string           // normalized URL, domain, workspaceId, or ''
-  title?: string
-  content: string
-  createdAt: number
-  updatedAt: number
-}
-```
-
-### Workspace
-```typescript
-{
-  id: string
-  name: string
-  createdAt: number
-  updatedAt: number
-}
-```
-
-## Architecture
-
-### Storage Abstraction
-The `StorageAdapter` interface (`packages/shared/src/storage.ts`) allows swapping backends:
-- **`LocalStorageAdapter`** — used in the web app
-- **`ChromeStorageAdapter`** — used in the extension (chrome.storage.local)
-- **Future: `SupabaseAdapter`** — for Pro cloud sync
-
-### Note Scopes
-| Scope | Key | Use case |
-|-------|-----|----------|
-| `url` | Normalized URL | Per-page research notes |
-| `domain` | Hostname | Site-wide notes (docs, wikis) |
-| `workspace` | Workspace ID | Project-grouped notes |
-| `global` | `''` | Global scratchpad |
-
-## Roadmap
-
-### Phase 1 — Foundation ✅ (now)
-- [x] Monorepo setup (pnpm workspaces)
-- [x] MV3 extension scaffold (popup + options)
-- [x] Web companion app
-- [x] Shared storage abstraction
-- [x] Local-first notes + scope switching
-- [x] Workspaces
-- [x] Export/import JSON
-- [x] Dark mode
-- [x] Documentation
-
-### Phase 2 — Real MVP
-- [ ] Domain/URL normalization refinement
-- [ ] Full-text search
-- [ ] Note tagging
-- [ ] Side panel support
-- [ ] Markdown preview
-
-### Phase 3 — Pro (Sync)
-- [ ] Supabase project (Auth + Postgres)
-- [ ] Cloud sync engine
-- [ ] Conflict resolution strategy
-- [ ] Web dashboard renders synced notes
-
-### Phase 4 — Monetization
-- [ ] Stripe subscription
-- [ ] Pro feature gating
-- [ ] Upgrade flow in extension
-
-## Pro / Backend Setup (Future)
-
-Copy `.env.example` to `.env.local` and fill in:
-
-```env
-# Supabase (Phase 3)
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-
-# Stripe (Phase 4)
-VITE_STRIPE_PUBLISHABLE_KEY=
-```
-
-Neither Supabase nor Stripe is required for local development.
-
-## Android Note
-
-Chrome extensions are **not supported on Android Chrome**. The companion web app / PWA serves as the cross-device solution for Android users, with cloud sync via the Pro tier.
+---
 
 ## License
 
-MIT © 2026 Florin Suciu
+MIT © TabNotes contributors

@@ -6,8 +6,8 @@ const NAV_ITEMS = [
   { to: '/',           label: 'Home',       icon: '⌂', exact: true },
   { to: '/notes',      label: 'Notes',      icon: '✎', exact: false },
   { to: '/workspaces', label: 'Workspaces', icon: '⊞', exact: false },
+  { to: '/about',      label: 'About',      icon: '✦', exact: false },
   { to: '/settings',   label: 'Settings',   icon: '⚙', exact: false },
-  { to: '/privacy',    label: 'Privacy',    icon: '🔒', exact: false },
 ];
 
 export default function Layout() {
