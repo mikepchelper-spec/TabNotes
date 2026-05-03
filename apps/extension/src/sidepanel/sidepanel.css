@@ -1774,6 +1774,56 @@ body {
 .sp-move-item.new { color: var(--accent); }
 .sp-move-divider { height: 1px; background: var(--border); margin: 2px 0; }
 
+/* ─── Settings: font size control ───────────────────────────── */
+.sp-fontsize-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.sp-fontsize-btn {
+  padding: 3px 9px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-sm, 6px);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+}
+.sp-fontsize-btn:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sp-fontsize-btn:disabled { opacity: .35; cursor: default; }
+.sp-fontsize-val {
+  min-width: 34px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ─── Settings: alignment control ───────────────────────────── */
+.sp-align-control {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sp-align-btn {
+  padding: 4px 8px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-sm, 6px);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 9px;
+  letter-spacing: -1px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.sp-align-btn:hover { background: var(--bg-card); color: var(--text); }
+.sp-align-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 /* ─── Formatting toolbar ─────────────────────────────────────── */
 .sp-fmt-toolbar {
   display: flex;
