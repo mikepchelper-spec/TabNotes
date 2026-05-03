@@ -967,6 +967,30 @@ ${parseMarkdown(content)}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, tags]);
 
+  // ── Alignment: wrap current line or selection ─────────────────
+  const wrapAlign = React.useCallback((alignment: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const val = ta.value;
+    let s = ta.selectionStart;
+    let e = ta.selectionEnd;
+    if (s === e) {
+      while (s > 0 && val[s - 1] !== '\n') s--;
+      while (e < val.length && val[e] !== '\n') e++;
+    }
+    const selected = val.slice(s, e);
+    const b = `<div style="text-align:${alignment}">`;
+    const a = '</div>';
+    const newVal = val.slice(0, s) + b + selected + a + val.slice(e);
+    setContent(newVal);
+    schedule(newVal, title, tags);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(s + b.length, e + b.length);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, tags]);
+
   // Close color picker on outside click
   React.useEffect(() => {
     if (!showColorPicker) return;
@@ -1855,6 +1879,19 @@ ${parseMarkdown(content)}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('`', '`'); }}
                       title="Inline code">{'</>'}</button>
                     <div className="sp-fmt-sep" />
+                    {/* Font size */}
+                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); changeFontSize(-1); }} title="Decrease font size"
+                      style={{ fontSize: 11, letterSpacing: '-.5px' }}>A−</button>
+                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); changeFontSize(1); }} title="Increase font size"
+                      style={{ fontSize: 13, fontWeight: 700 }}>A+</button>
+                    <div className="sp-fmt-sep" />
+                    {/* Alignment */}
+                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); wrapAlign('left'); }} title="Align left">⬛</button>
+                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); wrapAlign('center'); }} title="Align center"
+                      style={{ letterSpacing: -1 }}>▐█▌</button>
+                    <button className="sp-fmt-btn" onMouseDown={(e) => { e.preventDefault(); wrapAlign('right'); }} title="Align right"
+                      style={{ fontSize: 10 }}>▶▶</button>
+                    <div className="sp-fmt-sep" />
                     {/* Text color */}
                     <div style={{ position: 'relative' }}>
                       <button className="sp-fmt-btn sp-fmt-color-btn"
@@ -1939,6 +1976,12 @@ ${parseMarkdown(content)}
                       placeholder={`Note for this ${scope}…`}
                       disabled={tabLoading}
                       style={{ fontSize: fontSize, ...(activeNoteColor ? { background: activeNoteColor } : {}) }}
+                      onKeyDown={(e) => {
+                        if (!(e.ctrlKey || e.metaKey)) return;
+                        if (e.key === 'b') { e.preventDefault(); wrapSel('**', '**'); }
+                        if (e.key === 'i') { e.preventDefault(); wrapSel('*', '*'); }
+                        if (e.key === 'u') { e.preventDefault(); wrapSel('<u>', '</u>'); }
+                      }}
                     />
                     {wikiQuery !== null && (
                       <div className="tn-wiki-suggest">
