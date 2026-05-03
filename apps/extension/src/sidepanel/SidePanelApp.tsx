@@ -340,6 +340,7 @@ export default function SidePanelApp() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorMode, setColorMode]             = useState<'text' | 'highlight'>('text');
   const fmtRef = useRef<HTMLDivElement>(null);
+  const [fmtActive, setFmtActive] = useState({ bold: false, italic: false, underline: false, strike: false, code: false, highlight: false });
 
   // ── Smart suggestions ─────────────────────────────────────────
   const [suggestions, setSuggestions]         = useState<Note[]>([]);
@@ -1119,6 +1120,26 @@ ${parseMarkdown(content)}
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, tags]);
+
+  // ── Track active format state at cursor position ─────────────
+  React.useEffect(() => {
+    const update = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || !editorRef.current?.contains(sel.anchorNode)) return;
+      const anchor = sel.anchorNode;
+      const anchorEl = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as Element;
+      setFmtActive({
+        bold:      document.queryCommandState('bold'),
+        italic:    document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        strike:    document.queryCommandState('strikeThrough'),
+        code:      !!anchorEl?.closest('code'),
+        highlight: !!anchorEl?.closest('.tn-highlight'),
+      });
+    };
+    document.addEventListener('selectionchange', update);
+    return () => document.removeEventListener('selectionchange', update);
+  }, []);
 
   // ── Apply text / highlight color to selection ─────────────────
   const applyColor = React.useCallback((color: string, mode: 'text' | 'highlight') => {
@@ -2005,27 +2026,27 @@ ${parseMarkdown(content)}
                 {/* ── Formatting toolbar ── */}
                 {!preview && features.formattingBar && (
                   <div className="sp-fmt-toolbar" ref={fmtRef}>
-                    <button className="sp-fmt-btn sp-fmt-bold"
+                    <button className={`sp-fmt-btn sp-fmt-bold${fmtActive.bold ? ' sp-fmt-active' : ''}`}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('**', '**'); }}
                       title="Bold (Ctrl+B)"><b>B</b></button>
-                    <button className="sp-fmt-btn sp-fmt-italic"
+                    <button className={`sp-fmt-btn sp-fmt-italic${fmtActive.italic ? ' sp-fmt-active' : ''}`}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('*', '*'); }}
                       title="Italic (Ctrl+I)"><em>I</em></button>
-                    <button className="sp-fmt-btn sp-fmt-underline"
+                    <button className={`sp-fmt-btn sp-fmt-underline${fmtActive.underline ? ' sp-fmt-active' : ''}`}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('__', '__'); }}
                       title="Underline (Ctrl+U)"><u>U</u></button>
-                    <button className="sp-fmt-btn sp-fmt-strike"
+                    <button className={`sp-fmt-btn sp-fmt-strike${fmtActive.strike ? ' sp-fmt-active' : ''}`}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('~~', '~~'); }}
                       title="Strikethrough"><s>S</s></button>
-                    <button className="sp-fmt-btn sp-fmt-code"
+                    <button className={`sp-fmt-btn sp-fmt-code${fmtActive.code ? ' sp-fmt-active' : ''}`}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('`', '`'); }}
                       title="Inline code">{'</>'}</button>
                     <div className="sp-fmt-sep" />
                     {/* Highlight — yellow background on selected text */}
-                    <button className="sp-fmt-btn sp-fmt-highlight-btn"
+                    <button className={`sp-fmt-btn sp-fmt-highlight-btn${fmtActive.highlight ? ' sp-fmt-active' : ''}`}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('==', '=='); }}
                       title="Highlight selected text">
-                      <span style={{ background: '#fef08a', padding: '0 3px', borderRadius: 2, color: '#333' }}>H</span>
+                      <span style={{ background: fmtActive.highlight ? 'transparent' : '#fef08a', padding: '0 3px', borderRadius: 2, color: fmtActive.highlight ? 'inherit' : '#333' }}>H</span>
                     </button>
                     {/* Text & highlight color picker */}
                     <div style={{ position: 'relative' }}>

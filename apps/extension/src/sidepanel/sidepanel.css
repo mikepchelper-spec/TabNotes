@@ -1893,6 +1893,11 @@ body {
   flex-shrink: 0;
 }
 .sp-fmt-btn:hover { background: var(--bg-card); color: var(--text); }
+.sp-fmt-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-radius: 5px;
+}
 .sp-fmt-bold  { font-weight: 800; font-size: 13px; }
 .sp-fmt-italic { font-style: italic; }
 .sp-fmt-underline { text-decoration: underline; }
