@@ -1042,18 +1042,7 @@ ${parseMarkdown(content)}
     if (execMap[cmd]) {
       document.execCommand(execMap[cmd]);
     } else if (cmd === '==') {
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
-        const range = sel.getRangeAt(0);
-        try {
-          const mark = document.createElement('mark');
-          range.surroundContents(mark);
-        } catch {
-          document.execCommand('insertHTML', false, `<mark>${sel.toString()}</mark>`);
-        }
-      } else {
-        document.execCommand('insertHTML', false, '<mark>\u200b</mark>');
-      }
+      document.execCommand('hiliteColor', false, '#fef08a');
     } else if (cmd === '`') {
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
@@ -1094,6 +1083,25 @@ ${parseMarkdown(content)}
       setContent(html);
       schedule(html, title, tags);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, tags]);
+
+  // ── Apply text / highlight color to selection ─────────────────
+  const applyColor = React.useCallback((color: string, mode: 'text' | 'highlight') => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    if (mode === 'text') {
+      document.execCommand('foreColor', false, color);
+    } else {
+      document.execCommand('hiliteColor', false, color);
+    }
+    requestAnimationFrame(() => {
+      const html = el.innerHTML;
+      setContent(html);
+      schedule(html, title, tags);
+    });
+    setShowColorPicker(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, tags]);
 
@@ -1979,12 +1987,50 @@ ${parseMarkdown(content)}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('`', '`'); }}
                       title="Inline code">{'</>'}</button>
                     <div className="sp-fmt-sep" />
-                    {/* Highlight — uses ==text== markdown, renders as <mark> in preview */}
+                    {/* Highlight — yellow background on selected text */}
                     <button className="sp-fmt-btn sp-fmt-highlight-btn"
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('==', '=='); }}
-                      title="Highlight (==text==)">
+                      title="Highlight selected text">
                       <span style={{ background: '#fef08a', padding: '0 3px', borderRadius: 2, color: '#333' }}>H</span>
                     </button>
+                    {/* Text & highlight color picker */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        className="sp-fmt-btn sp-fmt-color-btn"
+                        onMouseDown={(e) => { e.preventDefault(); setShowColorPicker((v) => !v); setColorMode('text'); }}
+                        title="Text / highlight color"
+                      >
+                        <span style={{ borderBottom: '3px solid currentColor', paddingBottom: 1, fontWeight: 700 }}>A</span>
+                      </button>
+                      {showColorPicker && (
+                        <div className="sp-fmt-color-popup" onMouseDown={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                            <button
+                              style={{ flex: 1, fontSize: 9, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--border)', background: colorMode === 'text' ? 'var(--accent)' : 'var(--bg-subtle)', color: colorMode === 'text' ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}
+                              onMouseDown={(e) => { e.preventDefault(); setColorMode('text'); }}
+                            >Text</button>
+                            <button
+                              style={{ flex: 1, fontSize: 9, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--border)', background: colorMode === 'highlight' ? 'var(--accent)' : 'var(--bg-subtle)', color: colorMode === 'highlight' ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}
+                              onMouseDown={(e) => { e.preventDefault(); setColorMode('highlight'); }}
+                            >Mark</button>
+                          </div>
+                          {colorMode === 'text'
+                            ? TEXT_COLORS.map((c) => (
+                                <div key={c.value} className="sp-fmt-swatch" style={{ background: c.value }}
+                                  onMouseDown={(e) => { e.preventDefault(); applyColor(c.value, 'text'); }}
+                                  title={c.name}
+                                />
+                              ))
+                            : HIGHLIGHT_COLORS.map((c) => (
+                                <div key={c.value} className="sp-fmt-swatch" style={{ background: c.value }}
+                                  onMouseDown={(e) => { e.preventDefault(); applyColor(c.value, 'highlight'); }}
+                                  title={c.name}
+                                />
+                              ))
+                          }
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
