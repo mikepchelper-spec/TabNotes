@@ -15,6 +15,25 @@ const cr: any = (typeof globalThis !== 'undefined' && (globalThis as Record<stri
 
 type View = 'note' | 'all' | 'settings' | 'graph' | 'chat';
 
+const TEXT_COLORS = [
+  { name: 'Red',    value: '#ef4444' },
+  { name: 'Orange', value: '#f97316' },
+  { name: 'Yellow', value: '#ca8a04' },
+  { name: 'Green',  value: '#16a34a' },
+  { name: 'Blue',   value: '#2b5be8' },
+  { name: 'Purple', value: '#9333ea' },
+  { name: 'Pink',   value: '#db2777' },
+  { name: 'Gray',   value: '#6b7280' },
+];
+const HIGHLIGHT_COLORS = [
+  { name: 'Yellow', value: '#fef08a' },
+  { name: 'Green',  value: '#bbf7d0' },
+  { name: 'Blue',   value: '#bfdbfe' },
+  { name: 'Pink',   value: '#fbcfe8' },
+  { name: 'Orange', value: '#fed7aa' },
+  { name: 'Purple', value: '#e9d5ff' },
+];
+
 const SCOPE_OPTIONS: { value: NoteScope; label: string; icon: string; desc: string }[] = [
   { value: 'url',       label: 'URL',       icon: '🔗', desc: 'Exact page URL' },
   { value: 'domain',    label: 'Domain',    icon: '🌐', desc: 'Entire site' },
@@ -269,6 +288,15 @@ export default function SidePanelApp() {
   const [groqKeyVisible, setGroqKeyVisible] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef   = useRef<HTMLDivElement>(null);
+
+  // ── Rich-text formatting toolbar ─────────────────────────────
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [colorMode, setColorMode]             = useState<'text' | 'highlight'>('text');
+  const fmtRef = useRef<HTMLDivElement>(null);
+
+  // ── Smart suggestions ─────────────────────────────────────────
+  const [suggestions, setSuggestions]         = useState<Note[]>([]);
+  const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Command palette ───────────────────────────────────────────
   const [showCmdPalette, setShowCmdPalette] = useState(false);
@@ -668,6 +696,12 @@ export default function SidePanelApp() {
         if (gk['tn_groq_key']) {
           const key = gk['tn_groq_key'] as string;
           setGroqKey(key); setGroqKeyInput(key);
+        } else {
+          const envKey = (import.meta.env.VITE_GROQ_KEY as string | undefined) ?? '';
+          if (envKey) {
+            setGroqKey(envKey); setGroqKeyInput(envKey);
+            cr?.storage?.local?.set({ tn_groq_key: envKey });
+          }
         }
       }
 
@@ -914,6 +948,58 @@ ${parseMarkdown(content)}
   const saveDigest = (enabled: boolean, time: string) => {
     cr?.runtime?.sendMessage({ type: 'SET_DIGEST', enabled, time });
   };
+
+  // ── Formatting toolbar: wrap selected textarea text ───────────
+  const wrapSel = React.useCallback((before: string, after: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const selected = ta.value.slice(s, e);
+    const newVal = ta.value.slice(0, s) + before + selected + after + ta.value.slice(e);
+    setContent(newVal);
+    schedule(newVal, title, tags);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(s + before.length, e + before.length);
+    });
+    setShowColorPicker(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, tags]);
+
+  // Close color picker on outside click
+  React.useEffect(() => {
+    if (!showColorPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (fmtRef.current && !fmtRef.current.contains(e.target as Node)) setShowColorPicker(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showColorPicker]);
+
+  // ── Smart suggestions: debounced related-note lookup ──────────
+  React.useEffect(() => {
+    if (suggDebounceRef.current) clearTimeout(suggDebounceRef.current);
+    if (!content.trim() || view !== 'note' || allNotes.length < 2) { setSuggestions([]); return; }
+    suggDebounceRef.current = setTimeout(() => {
+      const words = content.split(/\s+/).slice(-30).join(' ');
+      const qWords = words.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      if (qWords.length === 0) { setSuggestions([]); return; }
+      const ranked = [...allNotes]
+        .filter((n) => n.id !== activeNoteId)
+        .map((n) => {
+          const text = `${n.title ?? ''} ${n.content}`.toLowerCase();
+          const score = qWords.reduce((s, w) => s + (text.split(w).length - 1), 0);
+          return { note: n, score };
+        })
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map((x) => x.note);
+      setSuggestions(ranked);
+    }, 700);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, activeNoteId, allNotes.length, view]);
 
   // ── Chat / RAG ────────────────────────────────────────────────
   const rankNotes = React.useCallback((notes: Note[], query: string): Note[] => {
@@ -1750,6 +1836,60 @@ ${parseMarkdown(content)}
                   disabled={tabLoading}
                 />
 
+                {/* ── Formatting toolbar ── */}
+                {!preview && (
+                  <div className="sp-fmt-toolbar" ref={fmtRef}>
+                    <button className="sp-fmt-btn sp-fmt-bold"
+                      onMouseDown={(e) => { e.preventDefault(); wrapSel('**', '**'); }}
+                      title="Bold (Ctrl+B)"><b>B</b></button>
+                    <button className="sp-fmt-btn sp-fmt-italic"
+                      onMouseDown={(e) => { e.preventDefault(); wrapSel('*', '*'); }}
+                      title="Italic (Ctrl+I)"><em>I</em></button>
+                    <button className="sp-fmt-btn sp-fmt-underline"
+                      onMouseDown={(e) => { e.preventDefault(); wrapSel('<u>', '</u>'); }}
+                      title="Underline"><u>U</u></button>
+                    <button className="sp-fmt-btn sp-fmt-strike"
+                      onMouseDown={(e) => { e.preventDefault(); wrapSel('~~', '~~'); }}
+                      title="Strikethrough"><s>S</s></button>
+                    <button className="sp-fmt-btn sp-fmt-code"
+                      onMouseDown={(e) => { e.preventDefault(); wrapSel('`', '`'); }}
+                      title="Inline code">{'</>'}</button>
+                    <div className="sp-fmt-sep" />
+                    {/* Text color */}
+                    <div style={{ position: 'relative' }}>
+                      <button className="sp-fmt-btn sp-fmt-color-btn"
+                        onMouseDown={(e) => { e.preventDefault(); setColorMode('text'); setShowColorPicker((v) => colorMode === 'text' ? !v : true); }}
+                        title="Text color">
+                        <span style={{ fontWeight: 700, borderBottom: '2.5px solid currentColor' }}>A</span>
+                      </button>
+                      {showColorPicker && colorMode === 'text' && (
+                        <div className="sp-fmt-color-popup">
+                          {TEXT_COLORS.map((c) => (
+                            <button key={c.value} className="sp-fmt-swatch" style={{ background: c.value }} title={c.name}
+                              onMouseDown={(e) => { e.preventDefault(); wrapSel(`<span style="color:${c.value}">`, '</span>'); }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Highlight */}
+                    <div style={{ position: 'relative' }}>
+                      <button className="sp-fmt-btn sp-fmt-highlight-btn"
+                        onMouseDown={(e) => { e.preventDefault(); setColorMode('highlight'); setShowColorPicker((v) => colorMode === 'highlight' ? !v : true); }}
+                        title="Highlight text">
+                        <span style={{ background: '#fef08a', padding: '0 2px', borderRadius: 2 }}>H</span>
+                      </button>
+                      {showColorPicker && colorMode === 'highlight' && (
+                        <div className="sp-fmt-color-popup">
+                          {HIGHLIGHT_COLORS.map((c) => (
+                            <button key={c.value} className="sp-fmt-swatch" style={{ background: c.value }} title={c.name}
+                              onMouseDown={(e) => { e.preventDefault(); wrapSel(`<span style="background:${c.value}">`, '</span>'); }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {preview && markdownEnabled ? (
                   <div
                     className="sp-markdown-preview"
@@ -1818,6 +1958,26 @@ ${parseMarkdown(content)}
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Smart suggestions ── */}
+                {suggestions.length > 0 && (
+                  <div className="sp-suggestions">
+                    <span className="sp-suggestions-label">Related</span>
+                    {suggestions.map((n) => (
+                      <button
+                        key={n.id}
+                        className="sp-suggestion-item"
+                        onClick={() => { selectNote(n); setSuggestions([]); }}
+                        title={n.content.slice(0, 120)}
+                      >
+                        <span className="sp-suggestion-title">
+                          {(n.title || n.content.split('\n')[0]).slice(0, 36) || 'Untitled'}
+                        </span>
+                      </button>
+                    ))}
+                    <button className="sp-suggestions-dismiss" onClick={() => setSuggestions([])}>×</button>
                   </div>
                 )}
 
