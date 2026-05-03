@@ -1942,38 +1942,12 @@ ${parseMarkdown(content)}
                       onMouseDown={(e) => { e.preventDefault(); wrapSel('`', '`'); }}
                       title="Inline code">{'</>'}</button>
                     <div className="sp-fmt-sep" />
-                    {/* Text color */}
-                    <div style={{ position: 'relative' }}>
-                      <button className="sp-fmt-btn sp-fmt-color-btn"
-                        onMouseDown={(e) => { e.preventDefault(); setColorMode('text'); setShowColorPicker((v) => colorMode === 'text' ? !v : true); }}
-                        title="Text color">
-                        <span style={{ fontWeight: 700, borderBottom: '2.5px solid currentColor' }}>A</span>
-                      </button>
-                      {showColorPicker && colorMode === 'text' && (
-                        <div className="sp-fmt-color-popup">
-                          {TEXT_COLORS.map((c) => (
-                            <button key={c.value} className="sp-fmt-swatch" style={{ background: c.value }} title={c.name}
-                              onMouseDown={(e) => { e.preventDefault(); wrapSel(`<span style="color:${c.value}">`, '</span>'); }} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {/* Highlight */}
-                    <div style={{ position: 'relative' }}>
-                      <button className="sp-fmt-btn sp-fmt-highlight-btn"
-                        onMouseDown={(e) => { e.preventDefault(); setColorMode('highlight'); setShowColorPicker((v) => colorMode === 'highlight' ? !v : true); }}
-                        title="Highlight text">
-                        <span style={{ background: '#fef08a', padding: '0 2px', borderRadius: 2 }}>H</span>
-                      </button>
-                      {showColorPicker && colorMode === 'highlight' && (
-                        <div className="sp-fmt-color-popup">
-                          {HIGHLIGHT_COLORS.map((c) => (
-                            <button key={c.value} className="sp-fmt-swatch" style={{ background: c.value }} title={c.name}
-                              onMouseDown={(e) => { e.preventDefault(); wrapSel(`<span style="background:${c.value}">`, '</span>'); }} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {/* Highlight — uses ==text== markdown, renders as <mark> in preview */}
+                    <button className="sp-fmt-btn sp-fmt-highlight-btn"
+                      onMouseDown={(e) => { e.preventDefault(); wrapSel('==', '=='); }}
+                      title="Highlight (==text==)">
+                      <span style={{ background: '#fef08a', padding: '0 3px', borderRadius: 2, color: '#333' }}>H</span>
+                    </button>
                   </div>
                 )}
 
