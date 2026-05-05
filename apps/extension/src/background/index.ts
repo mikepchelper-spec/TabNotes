@@ -301,7 +301,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await chrome.storage.local.set({
       tabnotes_data: { ...(data ?? {}), notes },
     });
-  } catch {}
+  } catch {
+    // Notification cleanup is best-effort.
+  }
 });
 
 // ── Notification click → open sidepanel ───────────────────────────────────────
