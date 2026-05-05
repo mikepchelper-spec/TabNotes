@@ -1,74 +1,121 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  Note, NoteScope, Workspace,
-  ChromeStorageAdapter, NotesService, WorkspacesService, StorageData,
-  normalizeUrl, normalizeDomain, formatRelativeTime, searchNotes,
-  exportData, importData,
+  Note,
+  NoteScope,
+  Workspace,
+  ChromeStorageAdapter,
+  NotesService,
+  WorkspacesService,
+  StorageData,
+  normalizeUrl,
+  normalizeDomain,
+  formatRelativeTime,
+  searchNotes,
+  exportData,
+  importData,
 } from '@tabnotes/shared';
 import type { ExportData, ExportPrefs } from '@tabnotes/shared';
 import './sidepanel.css';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const cr: any = (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).chrome)
-  ? (globalThis as Record<string, unknown>).chrome
-  : null;
+const cr: any =
+  typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).chrome
+    ? (globalThis as Record<string, unknown>).chrome
+    : null;
 
 type View = 'note' | 'all' | 'settings' | 'graph' | 'chat' | 'about';
 
+interface ModifiableSelection extends Selection {
+  modify(alter: 'move' | 'extend', direction: string, granularity: string): void;
+}
+
+const ICONS = {
+  url: '⌁',
+  domain: '◎',
+  workspace: '▦',
+  global: '◌',
+  note: '✎',
+  list: '☷',
+  graph: '◇',
+  settings: '◷',
+  folder: '▱',
+  trash: '⌫',
+  pin: '⌖',
+  calendar: '◫',
+  palette: '◐',
+  print: '▣',
+  camera: '▢',
+  typewriter: '⌁',
+  lock: '◼',
+  unlock: '◻',
+  history: '◴',
+  key: '⌑',
+  chat: '◍',
+  light: '☼',
+  dark: '◒',
+  markdown: '◈',
+  focus: '□',
+  flame: '△',
+  doc: '▤',
+  check: '✓',
+  spark: '✦',
+  shield: '⬠',
+} as const;
+
 const TEXT_COLORS = [
-  { name: 'Red',    value: '#ef4444' },
+  { name: 'Red', value: '#ef4444' },
   { name: 'Orange', value: '#f97316' },
   { name: 'Yellow', value: '#ca8a04' },
-  { name: 'Green',  value: '#16a34a' },
-  { name: 'Blue',   value: '#2b5be8' },
+  { name: 'Green', value: '#16a34a' },
+  { name: 'Blue', value: '#2b5be8' },
   { name: 'Purple', value: '#9333ea' },
-  { name: 'Pink',   value: '#db2777' },
-  { name: 'Gray',   value: '#6b7280' },
+  { name: 'Pink', value: '#db2777' },
+  { name: 'Gray', value: '#6b7280' },
 ];
 const HIGHLIGHT_COLORS = [
   { name: 'Yellow', value: '#fef08a' },
-  { name: 'Green',  value: '#bbf7d0' },
-  { name: 'Blue',   value: '#bfdbfe' },
-  { name: 'Pink',   value: '#fbcfe8' },
+  { name: 'Green', value: '#bbf7d0' },
+  { name: 'Blue', value: '#bfdbfe' },
+  { name: 'Pink', value: '#fbcfe8' },
   { name: 'Orange', value: '#fed7aa' },
   { name: 'Purple', value: '#e9d5ff' },
 ];
 
 const SCOPE_OPTIONS: { value: NoteScope; label: string; icon: string; desc: string }[] = [
-  { value: 'url',       label: 'URL',       icon: '🔗', desc: 'Exact page URL' },
-  { value: 'domain',    label: 'Domain',    icon: '🌐', desc: 'Entire site' },
-  { value: 'workspace', label: 'Workspace', icon: '⊞', desc: 'Your project' },
-  { value: 'global',    label: 'Global',    icon: '🌍', desc: 'Everywhere' },
+  { value: 'url', label: 'URL', icon: ICONS.url, desc: 'Exact page URL' },
+  { value: 'domain', label: 'Domain', icon: ICONS.domain, desc: 'Entire site' },
+  { value: 'workspace', label: 'Workspace', icon: ICONS.workspace, desc: 'Your project' },
+  { value: 'global', label: 'Global', icon: ICONS.global, desc: 'Everywhere' },
 ];
 
 const NOTE_COLORS = [
-  { value: '',        label: 'Default' },
-  { value: '#f59e0b', label: 'Amber'   },
-  { value: '#10b981', label: 'Green'   },
-  { value: '#3b82f6', label: 'Blue'    },
-  { value: '#ec4899', label: 'Pink'    },
-  { value: '#8b5cf6', label: 'Purple'  },
-  { value: '#ef4444', label: 'Red'     },
+  { value: '', label: 'Default' },
+  { value: '#f59e0b', label: 'Amber' },
+  { value: '#10b981', label: 'Green' },
+  { value: '#3b82f6', label: 'Blue' },
+  { value: '#ec4899', label: 'Pink' },
+  { value: '#8b5cf6', label: 'Purple' },
+  { value: '#ef4444', label: 'Red' },
 ];
 
 const TEMPLATES = [
   {
-    label: '📋 Meeting',
+    label: 'Meeting',
     title: 'Meeting Notes',
     content: '## Attendees\n- \n\n## Agenda\n1. \n\n## Decisions\n- \n\n## Action Items\n- [ ] ',
   },
   {
-    label: '✅ To-Do',
+    label: 'To-Do',
     title: 'To-Do List',
     content: '## Today\n- [ ] \n- [ ] \n- [ ] \n\n## This week\n- [ ] \n- [ ] ',
   },
   {
-    label: '🔬 Research',
+    label: 'Research',
     title: 'Research',
     content: '## Goal\n\n## Sources\n- \n\n## Key findings\n\n## Summary\n',
   },
   {
-    label: '📅 Daily Log',
+    label: 'Daily Log',
     title: '',
     content: '',
     dynamic: true,
@@ -85,15 +132,21 @@ function parseMarkdown(text: string): string {
   // Step 1 — extract inline HTML formatting tags so they survive HTML escaping
   const htmlChunks: string[] = [];
   const PH = '\x01';
-  let safe = text
+  const safe = text
     .replace(/<(span|u|s|b|i|strong|em|mark|div)\b([^>]*)>([\s\S]*?)<\/\1>/g, (full) => {
-      htmlChunks.push(full); return `${PH}${htmlChunks.length - 1}${PH}`;
+      htmlChunks.push(full);
+      return `${PH}${htmlChunks.length - 1}${PH}`;
     })
-    .replace(/<br\s*\/?>/g, () => { htmlChunks.push('<br/>'); return `${PH}${htmlChunks.length - 1}${PH}`; });
+    .replace(/<br\s*\/?>/g, () => {
+      htmlChunks.push('<br/>');
+      return `${PH}${htmlChunks.length - 1}${PH}`;
+    });
 
   // Step 2 — escape remaining HTML, then apply markdown
   let result = safe
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -103,8 +156,14 @@ function parseMarkdown(text: string): string {
     .replace(/__(.+?)__/g, '<u>$1</u>')
     .replace(/==(.+?)==/g, '<mark>$1</mark>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/^- \[x\] (.+)$/gim, '<li class="tn-task tn-done"><input type="checkbox" checked data-task="true" /><span>$1</span></li>')
-    .replace(/^- \[ \] (.+)$/gim, '<li class="tn-task"><input type="checkbox" data-task="true" /><span>$1</span></li>')
+    .replace(
+      /^- \[x\] (.+)$/gim,
+      '<li class="tn-task tn-done"><input type="checkbox" checked data-task="true" /><span>$1</span></li>'
+    )
+    .replace(
+      /^- \[ \] (.+)$/gim,
+      '<li class="tn-task"><input type="checkbox" data-task="true" /><span>$1</span></li>'
+    )
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
     .replace(/\[\[(.+?)\]\]/g, '<span class="tn-wikilink" data-wiki="$1">[[<u>$1</u>]]</span>')
@@ -114,21 +173,29 @@ function parseMarkdown(text: string): string {
     .replace(/<p><\/p>/g, '');
 
   // Step 3 — restore the extracted HTML chunks
-  result = result.replace(new RegExp(`${PH}(\\d+)${PH}`, 'g'), (_, i) => htmlChunks[parseInt(i)] ?? '');
+  result = result.replace(
+    new RegExp(`${PH}(\\d+)${PH}`, 'g'),
+    (_, i) => htmlChunks[parseInt(i)] ?? ''
+  );
   return result;
 }
 
 function stripFormatting(s: string): string {
   return s
-    .replace(/<[^>]+>/g, '')        // strip HTML tags
+    .replace(/<[^>]+>/g, '') // strip HTML tags
     .replace(/~~|__|\*\*|\*|`/g, '') // strip markdown markers
-    .replace(/&[a-z]+;/gi, ' ')     // strip HTML entities
+    .replace(/&[a-z]+;/gi, ' ') // strip HTML entities
     .trim();
 }
 
 function autoTitleFromContent(c: string): string {
   const first = stripFormatting(
-    c.trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^- \[.?\] /, '').trim()
+    c
+      .trim()
+      .split('\n')[0]
+      .replace(/^#+\s*/, '')
+      .replace(/^- \[.?\] /, '')
+      .trim()
   );
   return first.slice(0, 60);
 }
@@ -136,40 +203,65 @@ function autoTitleFromContent(c: string): string {
 // ── Crypto utilities ──────────────────────────────────────────
 async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const enc = new TextEncoder();
-  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, [
+    'deriveKey',
+  ]);
   const saltBytes = new Uint8Array(salt);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: saltBytes, iterations: 100_000, hash: 'SHA-256' },
-    km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
+    km,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
   );
 }
 async function encryptText(text: string, password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const key  = await deriveKey(password, salt);
-  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const cipher = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(text)
+  );
   const buf = new Uint8Array(28 + cipher.byteLength);
-  buf.set(salt, 0); buf.set(iv, 16); buf.set(new Uint8Array(cipher), 28);
+  buf.set(salt, 0);
+  buf.set(iv, 16);
+  buf.set(new Uint8Array(cipher), 28);
   return btoa(String.fromCharCode(...buf));
 }
 async function decryptText(data: string, password: string): Promise<string> {
-  const buf  = Uint8Array.from(atob(data), c => c.charCodeAt(0));
-  const key  = await deriveKey(password, buf.slice(0, 16));
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(16, 28) }, key, buf.slice(28));
+  const buf = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  const key = await deriveKey(password, buf.slice(0, 16));
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: buf.slice(16, 28) },
+    key,
+    buf.slice(28)
+  );
   return new TextDecoder().decode(plain);
 }
 
 // ── Note graph component ──────────────────────────────────────
-function NoteGraph({ notes, activeId, onSelect }: {
-  notes: Note[]; activeId: string | null; onSelect: (n: Note) => void;
+function NoteGraph({
+  notes,
+  activeId,
+  onSelect,
+}: {
+  notes: Note[];
+  activeId: string | null;
+  onSelect: (n: Note) => void;
 }) {
-  const W = 310, H = 280, cx = W / 2, cy = H / 2;
+  const W = 310,
+    H = 280,
+    cx = W / 2,
+    cy = H / 2;
   const active = notes.find((n) => n.id === activeId);
   const others = notes.filter((n) => n.id !== activeId).slice(0, 9);
 
   const wikiLinks = new Set<string>();
   if (active) {
-    for (const m of [...active.content.matchAll(/\[\[(.+?)\]\]/g)]) wikiLinks.add(m[1].toLowerCase());
+    for (const m of [...active.content.matchAll(/\[\[(.+?)\]\]/g)])
+      wikiLinks.add(m[1].toLowerCase());
   }
 
   const nodes = others.map((n, i) => {
@@ -178,28 +270,51 @@ function NoteGraph({ notes, activeId, onSelect }: {
     const label = stripFormatting(n.title || n.content.trim().split('\n')[0]).slice(0, 10);
     const linked = wikiLinks.has((n.title || '').toLowerCase());
     const shared = active ? active.tags.filter((t) => n.tags.includes(t)).length : 0;
-    return { note: n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), label, linked, shared };
+    return {
+      note: n,
+      x: cx + r * Math.cos(angle),
+      y: cy + r * Math.sin(angle),
+      label,
+      linked,
+      shared,
+    };
   });
 
   return (
     <svg width={W} height={H} style={{ display: 'block', margin: 'auto', overflow: 'visible' }}>
-      {nodes.filter((n) => n.linked || n.shared > 0).map((n, i) => (
-        <line key={i} x1={cx} y1={cy} x2={n.x} y2={n.y}
-          stroke={n.linked ? '#2b5be8' : '#c8d0e0'}
-          strokeWidth={n.linked ? 1.8 : 1}
-          strokeDasharray={n.linked ? 'none' : '5 3'}
-          opacity={.65}
-        />
-      ))}
+      {nodes
+        .filter((n) => n.linked || n.shared > 0)
+        .map((n, i) => (
+          <line
+            key={i}
+            x1={cx}
+            y1={cy}
+            x2={n.x}
+            y2={n.y}
+            stroke={n.linked ? '#2b5be8' : '#c8d0e0'}
+            strokeWidth={n.linked ? 1.8 : 1}
+            strokeDasharray={n.linked ? 'none' : '5 3'}
+            opacity={0.65}
+          />
+        ))}
       {nodes.map((n) => (
         <g key={n.note.id} style={{ cursor: 'pointer' }} onClick={() => onSelect(n.note)}>
-          <circle cx={n.x} cy={n.y} r={20}
+          <circle
+            cx={n.x}
+            cy={n.y}
+            r={20}
             fill={n.linked ? '#edf1ff' : 'var(--bg-card, #fff)'}
             stroke={n.linked ? '#2b5be8' : n.shared > 0 ? '#5c83f5' : '#c8d0e0'}
             strokeWidth={n.linked || n.shared > 0 ? 2 : 1}
           />
-          <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize={8.5}
-            fill="var(--text, #222)" fontFamily="system-ui,sans-serif">
+          <text
+            x={n.x}
+            y={n.y + 4}
+            textAnchor="middle"
+            fontSize={8.5}
+            fill="var(--text, #222)"
+            fontFamily="system-ui,sans-serif"
+          >
             {n.label}
           </text>
         </g>
@@ -207,14 +322,28 @@ function NoteGraph({ notes, activeId, onSelect }: {
       {active && (
         <g>
           <circle cx={cx} cy={cy} r={26} fill="#2b5be8" />
-          <text x={cx} y={cy + 4} textAnchor="middle" fontSize={9} fill="#fff"
-            fontFamily="system-ui,sans-serif" fontWeight="600">
+          <text
+            x={cx}
+            y={cy + 4}
+            textAnchor="middle"
+            fontSize={9}
+            fill="#fff"
+            fontFamily="system-ui,sans-serif"
+            fontWeight="600"
+          >
             {(active.title || stripFormatting(active.content).split('\n')[0]).slice(0, 13)}
           </text>
         </g>
       )}
       {!active && (
-        <text x={cx} y={cy + 5} textAnchor="middle" fontSize={11} fill="#aaa" fontFamily="system-ui">
+        <text
+          x={cx}
+          y={cy + 5}
+          textAnchor="middle"
+          fontSize={11}
+          fill="#aaa"
+          fontFamily="system-ui"
+        >
           No note selected
         </text>
       )}
@@ -233,8 +362,13 @@ type Features = {
   noteGraph: boolean;
 };
 const DEFAULT_FEATURES: Features = {
-  formattingBar: true, smartSuggestions: true, writingStreak: true,
-  wikiLinks: true, cmdPalette: true, chatView: true, noteGraph: true,
+  formattingBar: true,
+  smartSuggestions: true,
+  writingStreak: true,
+  wikiLinks: true,
+  cmdPalette: true,
+  chatView: true,
+  noteGraph: true,
 };
 
 // ── Chat types (module-level) ─────────────────────────────────
@@ -264,7 +398,7 @@ export default function SidePanelApp() {
 
   // Notes / workspaces
   const [allNotes, setAllNotes] = useState<Note[]>([]);
-  const [contextNotes, setContextNotes] = useState<Note[]>([]);   // notes for current scope+URL
+  const [contextNotes, setContextNotes] = useState<Note[]>([]); // notes for current scope+URL
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [defaultScope, setDefaultScopeState] = useState<NoteScope>('domain');
@@ -276,8 +410,10 @@ export default function SidePanelApp() {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
   const [saved, setSaved] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [dataFeedback, setDataFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [dataFeedback, setDataFeedback] = useState<{
+    type: 'success' | 'error';
+    msg: string;
+  } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // Pills scroll state
@@ -301,7 +437,11 @@ export default function SidePanelApp() {
     new Set(['url', 'domain', 'workspace', 'global'])
   );
   const toggleScope = (sc: string) =>
-    setCollapsedScopes((prev) => { const n = new Set(prev); n.has(sc) ? n.delete(sc) : n.add(sc); return n; });
+    setCollapsedScopes((prev) => {
+      const n = new Set(prev);
+      n.has(sc) ? n.delete(sc) : n.add(sc);
+      return n;
+    });
 
   // Workspace quick-switcher dropdown
   const [wsDropdown, setWsDropdown] = useState(false);
@@ -328,23 +468,30 @@ export default function SidePanelApp() {
 
   // ── Chat / RAG ────────────────────────────────────────────────
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
-  const [chatInput, setChatInput]       = useState('');
-  const [chatLoading, setChatLoading]   = useState(false);
-  const [chatScope, setChatScope]       = useState<'domain' | 'all'>('domain');
-  const [groqKey, setGroqKey]           = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatScope, setChatScope] = useState<'domain' | 'all'>('domain');
+  const [groqKey, setGroqKey] = useState('');
   const [groqKeyInput, setGroqKeyInput] = useState('');
   const [groqKeyVisible, setGroqKeyVisible] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef   = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // ── Rich-text formatting toolbar ─────────────────────────────
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [colorMode, setColorMode]             = useState<'text' | 'highlight'>('text');
+  const [colorMode, setColorMode] = useState<'text' | 'highlight'>('text');
   const fmtRef = useRef<HTMLDivElement>(null);
-  const [fmtActive, setFmtActive] = useState({ bold: false, italic: false, underline: false, strike: false, code: false, highlight: false });
+  const [fmtActive, setFmtActive] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strike: false,
+    code: false,
+    highlight: false,
+  });
 
   // ── Smart suggestions ─────────────────────────────────────────
-  const [suggestions, setSuggestions]         = useState<Note[]>([]);
+  const [suggestions, setSuggestions] = useState<Note[]>([]);
   const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Backup reminder ───────────────────────────────────────────
@@ -352,8 +499,8 @@ export default function SidePanelApp() {
 
   // ── Command palette ───────────────────────────────────────────
   const [showCmdPalette, setShowCmdPalette] = useState(false);
-  const [cmdQuery, setCmdQuery]             = useState('');
-  const [cmdSelIdx, setCmdSelIdx]           = useState(0);
+  const [cmdQuery, setCmdQuery] = useState('');
+  const [cmdSelIdx, setCmdSelIdx] = useState(0);
   const cmdInputRef = useRef<HTMLInputElement>(null);
 
   // ── Offline queue ─────────────────────────────────────────────
@@ -398,7 +545,7 @@ export default function SidePanelApp() {
   // Font size: 11–16
   const [fontSize, setFontSizeState] = useState<number>(13);
   // Default text alignment
-  const [defaultAlign, setDefaultAlignState] = useState<'left'|'center'|'right'>('left');
+  const [defaultAlign, setDefaultAlignState] = useState<'left' | 'center' | 'right'>('left');
 
   // Focus mode (hides all chrome, just editor)
   const [focusMode, setFocusMode] = useState(false);
@@ -415,8 +562,8 @@ export default function SidePanelApp() {
   const noteSvc = useRef(new NotesService(adapter.current));
   const wsSvc = useRef(new WorkspacesService(adapter.current));
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
-  const contentSavedRef = useRef('');   // last content persisted — dirty-check for cross-tab sync
-  const lastSaveTs = useRef(0);         // timestamp of our most recent save — skip our own writes
+  const contentSavedRef = useRef(''); // last content persisted — dirty-check for cross-tab sync
+  const lastSaveTs = useRef(0); // timestamp of our most recent save — skip our own writes
 
   // Refs for stable autosave (no stale closures)
   const activeNoteIdRef = useRef<string | null>(null);
@@ -425,11 +572,21 @@ export default function SidePanelApp() {
   const wsIdRef = useRef<string | null>(null);
   const activeFolderRef = useRef<string | null>(null);
 
-  useEffect(() => { activeNoteIdRef.current = activeNoteId; }, [activeNoteId]);
-  useEffect(() => { scopeRef.current = scope; }, [scope]);
-  useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
-  useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
-  useEffect(() => { wsIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
+  useEffect(() => {
+    activeNoteIdRef.current = activeNoteId;
+  }, [activeNoteId]);
+  useEffect(() => {
+    scopeRef.current = scope;
+  }, [scope]);
+  useEffect(() => {
+    currentUrlRef.current = currentUrl;
+  }, [currentUrl]);
+  useEffect(() => {
+    activeFolderRef.current = activeFolder;
+  }, [activeFolder]);
+  useEffect(() => {
+    wsIdRef.current = activeWorkspaceId;
+  }, [activeWorkspaceId]);
 
   // ── Load extra prefs from localStorage ───────────────────────
   useEffect(() => {
@@ -440,11 +597,13 @@ export default function SidePanelApp() {
       if (pins) setPinnedNotes(new Set(JSON.parse(pins)));
       const fs = localStorage.getItem('tn_fontsize');
       if (fs) setFontSizeState(Number(fs));
-      const al = localStorage.getItem('tn_align') as 'left'|'center'|'right'|null;
+      const al = localStorage.getItem('tn_align') as 'left' | 'center' | 'right' | null;
       if (al) setDefaultAlignState(al);
       const ft = localStorage.getItem('tn_features');
       if (ft) setFeatures((prev) => ({ ...prev, ...JSON.parse(ft) }));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Load backup reminder interval from chrome.storage.local
     cr?.storage?.local?.get('tn_backup_remind', (res: Record<string, unknown>) => {
@@ -499,10 +658,10 @@ export default function SidePanelApp() {
       });
     };
     const goOffline = () => setIsOnline(false);
-    window.addEventListener('online',  goOnline);
+    window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
     return () => {
-      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
     };
   }, []);
@@ -514,7 +673,7 @@ export default function SidePanelApp() {
 
     const handler = (
       changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
-      area: string,
+      area: string
     ) => {
       // Quick-capture: background sets this flag when Ctrl+Shift+N is pressed
       if (area === 'local' && changes['tn_quick_capture']?.newValue) {
@@ -535,15 +694,16 @@ export default function SidePanelApp() {
         const allUpdated = await noteSvc.current.getAllNotes();
         setAllNotes(allUpdated);
         const ctxUpdated = await noteSvc.current.getNotesByScope(
-          scopeRef.current, currentUrlRef.current, wsIdRef.current,
+          scopeRef.current,
+          currentUrlRef.current,
+          wsIdRef.current
         );
         setContextNotes(ctxUpdated);
 
         // Sync active note editor only when the user hasn't typed new content
         const id = activeNoteIdRef.current;
         if (id) {
-          const remote = ctxUpdated.find((n) => n.id === id)
-            ?? allUpdated.find((n) => n.id === id);
+          const remote = ctxUpdated.find((n) => n.id === id) ?? allUpdated.find((n) => n.id === id);
           if (remote && remote.content !== contentSavedRef.current) {
             // Remote has a newer version AND we haven't dirtied the editor
             setContent((localContent) => {
@@ -562,8 +722,11 @@ export default function SidePanelApp() {
     };
 
     cr.storage.onChanged.addListener(handler);
-    return () => { cr.storage.onChanged.removeListener(handler); clearTimeout(t); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cr.storage.onChanged.removeListener(handler);
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Typewriter mode: keep cursor line vertically centered ─────
@@ -590,7 +753,12 @@ export default function SidePanelApp() {
   // ── CLIP_TEXT listener (Web Clipper content script) ──────────
   useEffect(() => {
     if (!cr?.runtime?.onMessage) return;
-    const handler = (msg: { type: string; text: string; sourceUrl: string; sourceTitle: string }) => {
+    const handler = (msg: {
+      type: string;
+      text: string;
+      sourceUrl: string;
+      sourceTitle: string;
+    }) => {
       if (msg.type !== 'CLIP_TEXT') return;
       const clip = `\n\n> ${msg.text}\n\n— [${msg.sourceTitle || msg.sourceUrl}](${msg.sourceUrl})`;
       setContent((prev) => {
@@ -603,7 +771,7 @@ export default function SidePanelApp() {
     };
     cr.runtime.onMessage.addListener(handler);
     return () => cr.runtime.onMessage.removeListener(handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Click outside → close history / reminder popups ──────────
@@ -611,7 +779,8 @@ export default function SidePanelApp() {
     if (!showHistory && !showReminderPicker) return;
     const handle = (e: MouseEvent) => {
       if (showHistory && !historyRef.current?.contains(e.target as Node)) setShowHistory(false);
-      if (showReminderPicker && !reminderRef.current?.contains(e.target as Node)) setShowReminderPicker(false);
+      if (showReminderPicker && !reminderRef.current?.contains(e.target as Node))
+        setShowReminderPicker(false);
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -648,7 +817,9 @@ export default function SidePanelApp() {
         insertDatetime();
       } else if (e.key === 'k' && features.cmdPalette) {
         e.preventDefault();
-        setCmdQuery(''); setCmdSelIdx(0); setShowCmdPalette(true);
+        setCmdQuery('');
+        setCmdSelIdx(0);
+        setShowCmdPalette(true);
         setTimeout(() => cmdInputRef.current?.focus(), 30);
       } else if (e.key === 'f' && e.shiftKey) {
         e.preventDefault();
@@ -659,20 +830,24 @@ export default function SidePanelApp() {
       } else if (e.key === 'Escape' && focusMode) {
         setFocusMode(false);
       } else if (e.key === 'Escape') {
-        setWikiQuery(null); setWikiAnchor(null);
+        setWikiQuery(null);
+        setWikiAnchor(null);
       }
     };
     document.addEventListener('keydown', handle);
     return () => document.removeEventListener('keydown', handle);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, title, tags, focusMode]);
 
   // ── Theme ─────────────────────────────────────────────────────
   useEffect(() => {
     const apply = (t: typeof theme) => {
-      const resolved = t === 'system'
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : t;
+      const resolved =
+        t === 'system'
+          ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
+          : t;
       document.documentElement.setAttribute('data-theme', resolved);
     };
     apply(theme);
@@ -693,53 +868,59 @@ export default function SidePanelApp() {
   }, []);
 
   /** Load all notes for current scope+URL and activate one */
-  const loadContextNotes = useCallback(async (
-    url: string,
-    sc: NoteScope,
-    wsId: string | null,
-    preferNoteId?: string | null,
-  ) => {
-    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
-      setContextNotes([]);
-      setActiveNoteId(null); activeNoteIdRef.current = null;
-      setContent(''); setTitle(''); setTags('');
-      return;
-    }
+  const loadContextNotes = useCallback(
+    async (url: string, sc: NoteScope, wsId: string | null, preferNoteId?: string | null) => {
+      if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+        setContextNotes([]);
+        setActiveNoteId(null);
+        activeNoteIdRef.current = null;
+        setContent('');
+        setTitle('');
+        setTags('');
+        return;
+      }
 
-    const notes = await noteSvc.current.getNotesByScope(sc, url, wsId);
-    setContextNotes(notes);
+      const notes = await noteSvc.current.getNotesByScope(sc, url, wsId);
+      setContextNotes(notes);
 
-    const pick = preferNoteId
-      ? (notes.find((n) => n.id === preferNoteId) ?? notes[0] ?? null)
-      : (notes[0] ?? null);
+      const pick = preferNoteId
+        ? (notes.find((n) => n.id === preferNoteId) ?? notes[0] ?? null)
+        : (notes[0] ?? null);
 
-    setActiveNoteId(pick?.id ?? null);
-    activeNoteIdRef.current = pick?.id ?? null;
-    setContent(pick?.content ?? '');
-    setTitle(pick?.title ?? '');
-    setTags(pick?.tags.join(', ') ?? '');
-    setSaved(false);
-    setPreview(false);
-    setConfirmDelete(false);
-  }, []);
+      setActiveNoteId(pick?.id ?? null);
+      activeNoteIdRef.current = pick?.id ?? null;
+      setContent(pick?.content ?? '');
+      setTitle(pick?.title ?? '');
+      setTags(pick?.tags.join(', ') ?? '');
+      setSaved(false);
+      setPreview(false);
+    },
+    []
+  );
 
   // ── Switch to a new tab URL ───────────────────────────────────
-  const switchToTab = useCallback(async (url: string) => {
-    setTabLoading(true);
-    setCurrentUrl(url);
-    setCurrentDomain(normalizeDomain(url));
-    currentUrlRef.current = url;
+  const switchToTab = useCallback(
+    async (url: string) => {
+      setTabLoading(true);
+      setCurrentUrl(url);
+      setCurrentDomain(normalizeDomain(url));
+      currentUrlRef.current = url;
 
-    await Promise.all([
-      refreshAllNotes(),
-      loadContextNotes(url, scopeRef.current, wsIdRef.current),
-    ]);
-    setTabLoading(false);
-  }, [loadContextNotes, refreshAllNotes]);
+      await Promise.all([
+        refreshAllNotes(),
+        loadContextNotes(url, scopeRef.current, wsIdRef.current),
+      ]);
+      setTabLoading(false);
+    },
+    [loadContextNotes, refreshAllNotes]
+  );
 
   // ── Initial load ──────────────────────────────────────────────
   useEffect(() => {
-    if (!cr?.tabs) { setLoading(false); return; }
+    if (!cr?.tabs) {
+      setLoading(false);
+      return;
+    }
 
     const init = async () => {
       const [storageData, wsId, wsList] = await Promise.all([
@@ -749,8 +930,11 @@ export default function SidePanelApp() {
       ]);
 
       const sc: NoteScope = (storageData as StorageData).defaultScope ?? 'domain';
-      setDefaultScopeState(sc); setScope(sc); scopeRef.current = sc;
-      setActiveWorkspaceId(wsId); wsIdRef.current = wsId;
+      setDefaultScopeState(sc);
+      setScope(sc);
+      scopeRef.current = sc;
+      setActiveWorkspaceId(wsId);
+      wsIdRef.current = wsId;
       setWorkspaces(wsList);
       setMdState(storageData.markdownEnabled ?? false);
       setThemeState((storageData as unknown as { theme: typeof theme }).theme ?? 'system');
@@ -761,7 +945,10 @@ export default function SidePanelApp() {
           cr.storage.local.get('tn_digest', res)
         );
         const d = digestResult['tn_digest'] as { enabled?: boolean; time?: string } | undefined;
-        if (d) { setDigestEnabled(d.enabled ?? false); setDigestTime(d.time ?? '09:00'); }
+        if (d) {
+          setDigestEnabled(d.enabled ?? false);
+          setDigestTime(d.time ?? '09:00');
+        }
       }
 
       // Load Groq API key
@@ -771,11 +958,15 @@ export default function SidePanelApp() {
         );
         if (gk['tn_groq_key']) {
           const key = gk['tn_groq_key'] as string;
-          setGroqKey(key); setGroqKeyInput(key);
+          setGroqKey(key);
+          setGroqKeyInput(key);
         } else {
-          const envKey = ((import.meta as ImportMeta & { env?: { VITE_GROQ_KEY?: string } }).env?.VITE_GROQ_KEY) ?? '';
+          const envKey =
+            (import.meta as ImportMeta & { env?: { VITE_GROQ_KEY?: string } }).env?.VITE_GROQ_KEY ??
+            '';
           if (envKey) {
-            setGroqKey(envKey); setGroqKeyInput(envKey);
+            setGroqKey(envKey);
+            setGroqKeyInput(envKey);
             cr?.storage?.local?.set({ tn_groq_key: envKey });
           }
         }
@@ -832,7 +1023,7 @@ export default function SidePanelApp() {
     const onUpdated = (
       _tabId: number,
       changeInfo: { status?: string },
-      tab: { active?: boolean; url?: string },
+      tab: { active?: boolean; url?: string }
     ) => {
       if (!tab.active) return;
       if (changeInfo.status === 'complete' && tab.url && tab.url !== currentUrlRef.current) {
@@ -859,7 +1050,10 @@ export default function SidePanelApp() {
     el.addEventListener('scroll', update, { passive: true });
     // Use timeout so DOM has rendered with new pills
     const t = setTimeout(update, 50);
-    return () => { el.removeEventListener('scroll', update); clearTimeout(t); };
+    return () => {
+      el.removeEventListener('scroll', update);
+      clearTimeout(t);
+    };
   }, [contextNotes]);
 
   const scrollPills = (dir: 'left' | 'right') => {
@@ -868,7 +1062,8 @@ export default function SidePanelApp() {
 
   // ── Scope switch ──────────────────────────────────────────────
   const handleScopeChange = async (s: NoteScope) => {
-    setScope(s); scopeRef.current = s;
+    setScope(s);
+    scopeRef.current = s;
     setPreview(false);
     clearTimeout(saveTimer.current);
     await loadContextNotes(currentUrlRef.current, s, wsIdRef.current);
@@ -878,11 +1073,13 @@ export default function SidePanelApp() {
   // ── Note picker ───────────────────────────────────────────────
   const selectNote = (n: Note) => {
     clearTimeout(saveTimer.current);
-    setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
+    setActiveNoteId(n.id);
+    activeNoteIdRef.current = n.id;
     setContent(n.content);
     setTitle(stripFormatting(n.title ?? ''));
     setTags(n.tags.join(', '));
-    setSaved(false); setPreview(false); setConfirmDelete(false);
+    setSaved(false);
+    setPreview(false);
   };
 
   const updateStreak = React.useCallback(async () => {
@@ -922,63 +1119,82 @@ export default function SidePanelApp() {
   addNoteToContextRef.current = addNoteToContext;
 
   // ── Autosave — uses refs, never stale ────────────────────────
-  const saveNote = useCallback(async (c: string, t: string, tg: string) => {
-    const id = activeNoteIdRef.current;
-    const parsedTags = tg.split(',').map((s) => s.trim()).filter(Boolean);
-    let saved: Note | null = null;
+  const saveNote = useCallback(
+    async (c: string, t: string, tg: string) => {
+      const id = activeNoteIdRef.current;
+      const parsedTags = tg
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      let saved: Note | null = null;
 
-    if (id) {
-      saved = await noteSvc.current.updateNote(id, {
-        content: c, title: t || undefined, tags: parsedTags,
-      });
-    } else {
-      const url = currentUrlRef.current;
-      if (!url || url.startsWith('chrome://')) return;
-      saved = await noteSvc.current.createNote({
-        scope: scopeRef.current, url, workspaceId: wsIdRef.current,
-        content: c, title: t || undefined, tags: parsedTags,
-      });
-    }
+      if (id) {
+        saved = await noteSvc.current.updateNote(id, {
+          content: c,
+          title: t || undefined,
+          tags: parsedTags,
+        });
+      } else {
+        const url = currentUrlRef.current;
+        if (!url || url.startsWith('chrome://')) return;
+        saved = await noteSvc.current.createNote({
+          scope: scopeRef.current,
+          url,
+          workspaceId: wsIdRef.current,
+          content: c,
+          title: t || undefined,
+          tags: parsedTags,
+        });
+      }
 
-    if (saved) {
-      activeNoteIdRef.current = saved.id;
-      setActiveNoteId(saved.id);
-      // Refresh context notes to reflect updated title in pill
-      const url = currentUrlRef.current;
-      const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
-      setContextNotes(notes);
-    }
+      if (saved) {
+        activeNoteIdRef.current = saved.id;
+        setActiveNoteId(saved.id);
+        // Refresh context notes to reflect updated title in pill
+        const url = currentUrlRef.current;
+        const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+        setContextNotes(notes);
+      }
 
-    // Track what we just saved so cross-tab sync can tell it's not a remote change
-    contentSavedRef.current = c;
-    lastSaveTs.current = Date.now();
+      // Track what we just saved so cross-tab sync can tell it's not a remote change
+      contentSavedRef.current = c;
+      lastSaveTs.current = Date.now();
 
-    // Track offline queue — note saved locally; will "sync" when reconnected
-    if (!navigator.onLine && saved?.id) {
-      setPendingSyncIds((prev) => new Set([...prev, saved.id]));
-    }
+      // Track offline queue — note saved locally; will "sync" when reconnected
+      if (!navigator.onLine && saved?.id) {
+        setPendingSyncIds((prev) => new Set([...prev, saved.id]));
+      }
 
-    setSaved(true);
-    await refreshAllNotes();
-    updateStreak();
-    setTimeout(() => setSaved(false), 2000);
-  }, [refreshAllNotes, updateStreak]);
+      setSaved(true);
+      await refreshAllNotes();
+      updateStreak();
+      setTimeout(() => setSaved(false), 2000);
+    },
+    [refreshAllNotes, updateStreak]
+  );
 
-  const schedule = useCallback((c: string, t: string, tg: string) => {
-    setSaved(false);
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => saveNote(c, t, tg), 600);
-  }, [saveNote]);
+  const schedule = useCallback(
+    (c: string, t: string, tg: string) => {
+      setSaved(false);
+      clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => saveNote(c, t, tg), 600);
+    },
+    [saveNote]
+  );
 
   // ── Screenshot capture ───────────────────────────────────────
   const captureScreenshot = () => {
-    cr?.runtime?.sendMessage({ type: 'CAPTURE_TAB' }, (res: { dataUrl?: string; error?: string }) => {
-      if (!res?.dataUrl) return;
-      const ts = new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
-      const insert = `\n\n![Screenshot ${ts}](${res.dataUrl})\n`;
-      const next = content + insert;
-      setContent(next); schedule(next, title, tags);
-    });
+    cr?.runtime?.sendMessage(
+      { type: 'CAPTURE_TAB' },
+      (res: { dataUrl?: string; error?: string }) => {
+        if (!res?.dataUrl) return;
+        const ts = new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
+        const insert = `\n\n![Screenshot ${ts}](${res.dataUrl})\n`;
+        const next = content + insert;
+        setContent(next);
+        schedule(next, title, tags);
+      }
+    );
   };
 
   // ── Export to PDF ────────────────────────────────────────────
@@ -998,13 +1214,15 @@ export default function SidePanelApp() {
 ${title ? `<h1>${title}</h1>` : ''}
 <div class="meta">${new Date().toLocaleString()}${currentDomain ? ` · ${currentDomain}` : ''}${tags ? ` · Tags: ${tags}` : ''}</div>
 ${parseMarkdown(content)}
-<script>window.addEventListener('load',()=>window.print());<\/script>
+<script>window.addEventListener('load',()=>window.print());</script>
 </body></html>`;
     if (cr?.tabs?.create) {
       const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
       cr.tabs.create({ url });
     } else {
-      const w = window.open('', '_blank'); w?.document.write(html); w?.document.close();
+      const w = window.open('', '_blank');
+      w?.document.write(html);
+      w?.document.close();
     }
   };
 
@@ -1014,13 +1232,24 @@ ${parseMarkdown(content)}
     try {
       const encrypted = await encryptText(content, encPassword);
       await noteSvc.current.updateNote(activeNoteId, {
-        content: '🔐 This note is encrypted.', encrypted: true, encryptedData: encrypted,
+        content: 'This note is encrypted.',
+        encrypted: true,
+        encryptedData: encrypted,
       });
-      setContent('🔐 This note is encrypted.');
-      const notes = await noteSvc.current.getNotesByScope(scopeRef.current, currentUrlRef.current, wsIdRef.current);
-      setContextNotes(notes); await refreshAllNotes();
-      setShowEncPrompt(null); setEncPassword(''); setEncError('');
-    } catch { setEncError('Encryption failed.'); }
+      setContent('This note is encrypted.');
+      const notes = await noteSvc.current.getNotesByScope(
+        scopeRef.current,
+        currentUrlRef.current,
+        wsIdRef.current
+      );
+      setContextNotes(notes);
+      await refreshAllNotes();
+      setShowEncPrompt(null);
+      setEncPassword('');
+      setEncError('');
+    } catch {
+      setEncError('Encryption failed.');
+    }
   };
 
   const handleUnlockNote = async () => {
@@ -1029,13 +1258,24 @@ ${parseMarkdown(content)}
     try {
       const decrypted = await decryptText(note.encryptedData, encPassword);
       await noteSvc.current.updateNote(activeNoteId, {
-        content: decrypted, encrypted: false, encryptedData: undefined,
+        content: decrypted,
+        encrypted: false,
+        encryptedData: undefined,
       });
       setContent(decrypted);
-      const notes = await noteSvc.current.getNotesByScope(scopeRef.current, currentUrlRef.current, wsIdRef.current);
-      setContextNotes(notes); await refreshAllNotes();
-      setShowEncPrompt(null); setEncPassword(''); setEncError('');
-    } catch { setEncError('Wrong password.'); }
+      const notes = await noteSvc.current.getNotesByScope(
+        scopeRef.current,
+        currentUrlRef.current,
+        wsIdRef.current
+      );
+      setContextNotes(notes);
+      await refreshAllNotes();
+      setShowEncPrompt(null);
+      setEncPassword('');
+      setEncError('');
+    } catch {
+      setEncError('Wrong password.');
+    }
   };
 
   // ── Daily Digest save ────────────────────────────────────────
@@ -1044,92 +1284,84 @@ ${parseMarkdown(content)}
   };
 
   // ── Formatting toolbar: wrap selected textarea text ───────────
-  const wrapSel = React.useCallback((cmd: string, _after?: string) => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-    const execMap: Record<string, string> = {
-      '**': 'bold', '*': 'italic', '__': 'underline', '~~': 'strikeThrough',
-    };
-    if (execMap[cmd]) {
-      document.execCommand(execMap[cmd]);
-    } else if (cmd === '==') {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const range = sel.getRangeAt(0);
-      const anchor = range.commonAncestorContainer;
-      const anchorEl = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as Element;
-      const existing = anchorEl?.closest('.tn-highlight');
-      if (existing) {
-        // Toggle OFF — unwrap the highlight span
-        const p = existing.parentNode!;
-        while (existing.firstChild) p.insertBefore(existing.firstChild, existing);
-        p.removeChild(existing);
-        p.normalize();
-      } else if (!sel.isCollapsed) {
-        // Toggle ON — wrap selection in highlight span
-        const span = document.createElement('span');
-        span.className = 'tn-highlight';
-        span.appendChild(range.extractContents());
-        range.insertNode(span);
-        sel.removeAllRanges();
-        const r2 = document.createRange();
-        r2.selectNodeContents(span);
-        sel.addRange(r2);
-      }
-    } else if (cmd === '`') {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const range = sel.getRangeAt(0);
-      const anchor = range.commonAncestorContainer;
-      const anchorEl = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as Element;
-      const existing = anchorEl?.closest('code');
-      if (existing) {
-        // Toggle OFF — unwrap the code element
-        const p = existing.parentNode!;
-        while (existing.firstChild) p.insertBefore(existing.firstChild, existing);
-        p.removeChild(existing);
-        p.normalize();
-      } else {
-        // Toggle ON — wrap selection in code element
-        const code = document.createElement('code');
-        if (!sel.isCollapsed) {
-          code.appendChild(range.extractContents());
-        }
-        range.insertNode(code);
-        if (sel.isCollapsed) {
+  const wrapSel = React.useCallback(
+    (cmd: string, _after?: string) => {
+      const el = editorRef.current;
+      if (!el) return;
+      el.focus();
+      const execMap: Record<string, string> = {
+        '**': 'bold',
+        '*': 'italic',
+        __: 'underline',
+        '~~': 'strikeThrough',
+      };
+      if (execMap[cmd]) {
+        document.execCommand(execMap[cmd]);
+      } else if (cmd === '==') {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        const anchor = range.commonAncestorContainer;
+        const anchorEl =
+          anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as Element);
+        const existing = anchorEl?.closest('.tn-highlight');
+        if (existing) {
+          // Toggle OFF — unwrap the highlight span
+          const p = existing.parentNode!;
+          while (existing.firstChild) p.insertBefore(existing.firstChild, existing);
+          p.removeChild(existing);
+          p.normalize();
+        } else if (!sel.isCollapsed) {
+          // Toggle ON — wrap selection in highlight span
+          const span = document.createElement('span');
+          span.className = 'tn-highlight';
+          span.appendChild(range.extractContents());
+          range.insertNode(span);
+          sel.removeAllRanges();
           const r2 = document.createRange();
-          r2.setStart(code, 0); r2.collapse(true);
-          sel.removeAllRanges(); sel.addRange(r2);
+          r2.selectNodeContents(span);
+          sel.addRange(r2);
+        }
+      } else if (cmd === '`') {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        const anchor = range.commonAncestorContainer;
+        const anchorEl =
+          anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as Element);
+        const existing = anchorEl?.closest('code');
+        if (existing) {
+          // Toggle OFF — unwrap the code element
+          const p = existing.parentNode!;
+          while (existing.firstChild) p.insertBefore(existing.firstChild, existing);
+          p.removeChild(existing);
+          p.normalize();
+        } else {
+          // Toggle ON — wrap selection in code element
+          const code = document.createElement('code');
+          if (!sel.isCollapsed) {
+            code.appendChild(range.extractContents());
+          }
+          range.insertNode(code);
+          if (sel.isCollapsed) {
+            const r2 = document.createRange();
+            r2.setStart(code, 0);
+            r2.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(r2);
+          }
         }
       }
-    }
-    requestAnimationFrame(() => {
-      const html = el.innerHTML;
-      setContent(html);
-      schedule(html, title, tags);
-    });
-    setShowColorPicker(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, tags]);
-
-  // ── Alignment: apply via execCommand ──────────────────────────
-  const wrapAlign = React.useCallback((alignment: string) => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-    const cmds: Record<string, string> = {
-      left: 'justifyLeft', center: 'justifyCenter',
-      right: 'justifyRight', justify: 'justifyFull',
-    };
-    if (cmds[alignment]) document.execCommand(cmds[alignment]);
-    requestAnimationFrame(() => {
-      const html = el.innerHTML;
-      setContent(html);
-      schedule(html, title, tags);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, tags]);
+      requestAnimationFrame(() => {
+        const html = el.innerHTML;
+        setContent(html);
+        schedule(html, title, tags);
+      });
+      setShowColorPicker(false);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [title, tags, schedule]
+  );
 
   // ── Track active format state at cursor position ─────────────
   React.useEffect(() => {
@@ -1137,13 +1369,14 @@ ${parseMarkdown(content)}
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || !editorRef.current?.contains(sel.anchorNode)) return;
       const anchor = sel.anchorNode;
-      const anchorEl = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as Element;
+      const anchorEl =
+        anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as Element);
       setFmtActive({
-        bold:      document.queryCommandState('bold'),
-        italic:    document.queryCommandState('italic'),
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
         underline: document.queryCommandState('underline'),
-        strike:    document.queryCommandState('strikeThrough'),
-        code:      !!anchorEl?.closest('code'),
+        strike: document.queryCommandState('strikeThrough'),
+        code: !!anchorEl?.closest('code'),
         highlight: !!anchorEl?.closest('.tn-highlight'),
       });
     };
@@ -1152,23 +1385,26 @@ ${parseMarkdown(content)}
   }, []);
 
   // ── Apply text / highlight color to selection ─────────────────
-  const applyColor = React.useCallback((color: string, mode: 'text' | 'highlight') => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-    if (mode === 'text') {
-      document.execCommand('foreColor', false, color);
-    } else {
-      document.execCommand('hiliteColor', false, color);
-    }
-    requestAnimationFrame(() => {
-      const html = el.innerHTML;
-      setContent(html);
-      schedule(html, title, tags);
-    });
-    setShowColorPicker(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, tags]);
+  const applyColor = React.useCallback(
+    (color: string, mode: 'text' | 'highlight') => {
+      const el = editorRef.current;
+      if (!el) return;
+      el.focus();
+      if (mode === 'text') {
+        document.execCommand('foreColor', false, color);
+      } else {
+        document.execCommand('hiliteColor', false, color);
+      }
+      requestAnimationFrame(() => {
+        const html = el.innerHTML;
+        setContent(html);
+        schedule(html, title, tags);
+      });
+      setShowColorPicker(false);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [title, tags, schedule]
+  );
 
   // Close color picker on outside click
   React.useEffect(() => {
@@ -1183,11 +1419,20 @@ ${parseMarkdown(content)}
   // ── Smart suggestions: debounced related-note lookup ──────────
   React.useEffect(() => {
     if (suggDebounceRef.current) clearTimeout(suggDebounceRef.current);
-    if (!stripFormatting(content).trim() || view !== 'note' || allNotes.length < 2) { setSuggestions([]); return; }
+    if (!stripFormatting(content).trim() || view !== 'note' || allNotes.length < 2) {
+      setSuggestions([]);
+      return;
+    }
     suggDebounceRef.current = setTimeout(() => {
       const words = stripFormatting(content).split(/\s+/).slice(-30).join(' ');
-      const qWords = words.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
-      if (qWords.length === 0) { setSuggestions([]); return; }
+      const qWords = words
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 3);
+      if (qWords.length === 0) {
+        setSuggestions([]);
+        return;
+      }
       const ranked = [...allNotes]
         .filter((n) => n.id !== activeNoteId)
         .map((n) => {
@@ -1201,13 +1446,16 @@ ${parseMarkdown(content)}
         .map((x) => x.note);
       setSuggestions(ranked);
     }, 700);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, activeNoteId, allNotes.length, view]);
 
   // ── Chat / RAG ────────────────────────────────────────────────
   const rankNotes = React.useCallback((notes: Note[], query: string): Note[] => {
     if (!query.trim()) return [...notes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 12);
-    const words = query.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+    const words = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2);
     return [...notes]
       .map((n) => {
         const text = `${n.title ?? ''} ${n.content}`.toLowerCase();
@@ -1223,17 +1471,25 @@ ${parseMarkdown(content)}
     const q = chatInput.trim();
     if (!q || chatLoading) return;
     if (!groqKey) {
-      setChatMessages((m) => [...m, { role: 'assistant', content: '⚠ Add your Groq API key in Settings first.' }]);
+      setChatMessages((m) => [
+        ...m,
+        { role: 'assistant', content: '⚠ Add your Groq API key in Settings first.' },
+      ]);
       return;
     }
-    const pool = chatScope === 'domain'
-      ? allNotes.filter((n) => n.scope === 'domain' && n.scopeKey === currentDomain)
-      : allNotes;
+    const pool =
+      chatScope === 'domain'
+        ? allNotes.filter((n) => n.scope === 'domain' && n.scopeKey === currentDomain)
+        : allNotes;
     const relevant = rankNotes(pool, q);
-    const scopeLabel = chatScope === 'domain' ? `domain: ${currentDomain || 'current site'}` : 'all notes';
-    const contextStr = relevant.length > 0
-      ? relevant.map((n) => `### ${n.title || 'Untitled'}\n${stripFormatting(n.content).slice(0, 800)}`).join('\n\n---\n\n')
-      : '(no notes found)';
+    const scopeLabel =
+      chatScope === 'domain' ? `domain: ${currentDomain || 'current site'}` : 'all notes';
+    const contextStr =
+      relevant.length > 0
+        ? relevant
+            .map((n) => `### ${n.title || 'Untitled'}\n${stripFormatting(n.content).slice(0, 800)}`)
+            .join('\n\n---\n\n')
+        : '(no notes found)';
     const system = `You are a personal knowledge assistant. Answer ONLY based on the user's notes below. If the answer isn't there, say so clearly. Be direct and concise.\n\nNotes from ${scopeLabel}:\n---\n${contextStr}\n---`;
 
     const userMsg = { role: 'user' as const, content: q };
@@ -1245,41 +1501,78 @@ ${parseMarkdown(content)}
       const history = [...chatMessages, userMsg].slice(-8);
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'llama-3.1-8b-instant',
           messages: [
             { role: 'system', content: system },
             ...history.map((m) => ({ role: m.role, content: m.content })),
           ],
-          stream: true, max_tokens: 1024, temperature: 0.3,
+          stream: true,
+          max_tokens: 1024,
+          temperature: 0.3,
         }),
       });
       if (!res.ok) {
         const errText = await res.text();
-        setChatMessages((m) => { const n = [...m]; n[n.length - 1] = { role: 'assistant', content: `❌ API error ${res.status}: ${errText.slice(0, 120)}` }; return n; });
-        setChatLoading(false); return;
+        setChatMessages((m) => {
+          const n = [...m];
+          n[n.length - 1] = {
+            role: 'assistant',
+            content: `❌ API error ${res.status}: ${errText.slice(0, 120)}`,
+          };
+          return n;
+        });
+        setChatLoading(false);
+        return;
       }
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let full = '';
-      while (true) {
+      let streamDone = false;
+      while (!streamDone) {
         const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value).split('\n').filter((l) => l.startsWith('data: ') && !l.includes('[DONE]'));
+        streamDone = done;
+        if (done) continue;
+        const lines = decoder
+          .decode(value)
+          .split('\n')
+          .filter((l) => l.startsWith('data: ') && !l.includes('[DONE]'));
         for (const line of lines) {
           try {
             const delta = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content;
-            if (delta) { full += delta; setChatMessages((m) => { const n = [...m]; n[n.length - 1] = { role: 'assistant', content: full }; return n; }); }
-          } catch { /* skip malformed chunk */ }
+            if (delta) {
+              full += delta;
+              setChatMessages((m) => {
+                const n = [...m];
+                n[n.length - 1] = { role: 'assistant', content: full };
+                return n;
+              });
+            }
+          } catch {
+            /* skip malformed chunk */
+          }
         }
       }
     } catch (e) {
-      setChatMessages((m) => { const n = [...m]; n[n.length - 1] = { role: 'assistant', content: `❌ ${String(e)}` }; return n; });
+      setChatMessages((m) => {
+        const n = [...m];
+        n[n.length - 1] = { role: 'assistant', content: `❌ ${String(e)}` };
+        return n;
+      });
     }
     setChatLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatInput, chatLoading, groqKey, chatScope, allNotes, currentDomain, chatMessages, rankNotes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    chatInput,
+    chatLoading,
+    groqKey,
+    chatScope,
+    allNotes,
+    currentDomain,
+    chatMessages,
+    rankNotes,
+  ]);
 
   // Auto-scroll chat to bottom
   React.useEffect(() => {
@@ -1294,13 +1587,16 @@ ${parseMarkdown(content)}
     if (!sel) return;
     const queryLen = wikiAnchor.end - wikiAnchor.start;
     sel.collapseToEnd();
+    const modifiableSel = sel as ModifiableSelection;
     for (let i = 0; i < queryLen; i++) {
-      (sel as any).modify('extend', 'backward', 'character');
+      modifiableSel.modify('extend', 'backward', 'character');
     }
     document.execCommand('insertText', false, `[[${noteTitle}]]`);
     const html = editorRef.current.innerHTML;
-    setContent(html); schedule(html, title, tags);
-    setWikiQuery(null); setWikiAnchor(null);
+    setContent(html);
+    schedule(html, title, tags);
+    setWikiQuery(null);
+    setWikiAnchor(null);
   };
 
   // ── Bulk delete selected notes ────────────────────────────────
@@ -1375,7 +1671,8 @@ ${parseMarkdown(content)}
     await adapter.current.set({ theme: t as 'light' | 'dark' | 'system' });
   };
   const setMarkdown = async (v: boolean) => {
-    setMdState(v); setPreview(false);
+    setMdState(v);
+    setPreview(false);
     await adapter.current.set({ markdownEnabled: v });
   };
   const setDefaultScope = async (s: NoteScope) => {
@@ -1396,8 +1693,11 @@ ${parseMarkdown(content)}
     const el = editorRef.current;
     const now = new Date();
     const str = now.toLocaleString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
     if (el) {
       el.focus();
@@ -1419,7 +1719,10 @@ ${parseMarkdown(content)}
     const blob = new Blob([text], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const slug = (title || 'note').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
+    const slug = (title || 'note')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .slice(0, 30);
     a.href = url;
     a.download = `${slug}.md`;
     a.click();
@@ -1452,7 +1755,7 @@ ${parseMarkdown(content)}
     setFontSizeState(next);
     localStorage.setItem('tn_fontsize', String(next));
   };
-  const setDefaultAlign = (a: 'left'|'center'|'right') => {
+  const setDefaultAlign = (a: 'left' | 'center' | 'right') => {
     setDefaultAlignState(a);
     localStorage.setItem('tn_align', a);
   };
@@ -1476,7 +1779,10 @@ ${parseMarkdown(content)}
     const url = currentUrlRef.current;
     if (!url || url.startsWith('chrome://')) return;
     const created = await noteSvc.current.createNote({
-      scope: scopeRef.current, url, workspaceId: wsIdRef.current, folder,
+      scope: scopeRef.current,
+      url,
+      workspaceId: wsIdRef.current,
+      folder,
     });
     const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
     setContextNotes(notes);
@@ -1530,12 +1836,17 @@ ${parseMarkdown(content)}
   };
 
   // ── Apply template ────────────────────────────────────────────
-  const applyTemplate = (tpl: typeof TEMPLATES[0]) => {
+  const applyTemplate = (tpl: (typeof TEMPLATES)[0]) => {
     let newTitle = tpl.title;
     let newContent = tpl.content;
     if (tpl.dynamic) {
       const d = new Date();
-      newTitle = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      newTitle = d.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
       newContent = `# ${newTitle}\n\n## Done\n- \n\n## Notes\n\n## Tomorrow\n- `;
     }
     setTitle(newTitle);
@@ -1558,25 +1869,29 @@ ${parseMarkdown(content)}
 
       // Gather all preferences so a full restore is possible after reinstall
       const prefs: ExportPrefs = {};
-      const colors  = localStorage.getItem('tn_colors');
-      const pins    = localStorage.getItem('tn_pins');
-      const fs      = localStorage.getItem('tn_fontsize');
-      const al      = localStorage.getItem('tn_align');
-      const ft      = localStorage.getItem('tn_features');
-      if (colors)  prefs.colors   = JSON.parse(colors);
-      if (pins)    prefs.pins     = JSON.parse(pins);
-      if (fs)      prefs.fontsize = Number(fs);
-      if (al)      prefs.align    = al as ExportPrefs['align'];
-      if (ft)      prefs.features = JSON.parse(ft);
+      const colors = localStorage.getItem('tn_colors');
+      const pins = localStorage.getItem('tn_pins');
+      const fs = localStorage.getItem('tn_fontsize');
+      const al = localStorage.getItem('tn_align');
+      const ft = localStorage.getItem('tn_features');
+      if (colors) prefs.colors = JSON.parse(colors);
+      if (pins) prefs.pins = JSON.parse(pins);
+      if (fs) prefs.fontsize = Number(fs);
+      if (al) prefs.align = al as ExportPrefs['align'];
+      if (ft) prefs.features = JSON.parse(ft);
 
       // chrome.storage.local prefs (digest + streak + backup reminder)
       await new Promise<void>((resolve) => {
-        cr?.storage?.local?.get(['tn_digest', 'tn_streak', 'tn_backup_remind'], (res: Record<string, unknown>) => {
-          if (res?.tn_digest)       prefs.digest           = res.tn_digest as ExportPrefs['digest'];
-          if (res?.tn_streak)       prefs.streak           = res.tn_streak as ExportPrefs['streak'];
-          if (res?.tn_backup_remind) prefs.backupRemindDays = (res.tn_backup_remind as { days?: number })?.days ?? 7;
-          resolve();
-        });
+        cr?.storage?.local?.get(
+          ['tn_digest', 'tn_streak', 'tn_backup_remind'],
+          (res: Record<string, unknown>) => {
+            if (res?.tn_digest) prefs.digest = res.tn_digest as ExportPrefs['digest'];
+            if (res?.tn_streak) prefs.streak = res.tn_streak as ExportPrefs['streak'];
+            if (res?.tn_backup_remind)
+              prefs.backupRemindDays = (res.tn_backup_remind as { days?: number })?.days ?? 7;
+            resolve();
+          }
+        );
       });
 
       payload.prefs = prefs;
@@ -1615,13 +1930,28 @@ ${parseMarkdown(content)}
       // Restore preferences if present in backup
       if (parsed.prefs) {
         const p = parsed.prefs;
-        if (p.colors   != null) { localStorage.setItem('tn_colors',   JSON.stringify(p.colors));   setNoteColors(p.colors); }
-        if (p.pins     != null) { localStorage.setItem('tn_pins',     JSON.stringify(p.pins));     setPinnedNotes(new Set(p.pins)); }
-        if (p.fontsize != null) { localStorage.setItem('tn_fontsize', String(p.fontsize));         setFontSizeState(p.fontsize); }
-        if (p.align    != null) { localStorage.setItem('tn_align',    p.align);                    setDefaultAlignState(p.align); }
-        if (p.features != null) { localStorage.setItem('tn_features', JSON.stringify(p.features)); setFeatures((prev) => ({ ...prev, ...p.features })); }
-        if (p.digest           != null) cr?.storage?.local?.set({ tn_digest: p.digest });
-        if (p.streak           != null) cr?.storage?.local?.set({ tn_streak: p.streak });
+        if (p.colors != null) {
+          localStorage.setItem('tn_colors', JSON.stringify(p.colors));
+          setNoteColors(p.colors);
+        }
+        if (p.pins != null) {
+          localStorage.setItem('tn_pins', JSON.stringify(p.pins));
+          setPinnedNotes(new Set(p.pins));
+        }
+        if (p.fontsize != null) {
+          localStorage.setItem('tn_fontsize', String(p.fontsize));
+          setFontSizeState(p.fontsize);
+        }
+        if (p.align != null) {
+          localStorage.setItem('tn_align', p.align);
+          setDefaultAlignState(p.align);
+        }
+        if (p.features != null) {
+          localStorage.setItem('tn_features', JSON.stringify(p.features));
+          setFeatures((prev) => ({ ...prev, ...p.features }));
+        }
+        if (p.digest != null) cr?.storage?.local?.set({ tn_digest: p.digest });
+        if (p.streak != null) cr?.storage?.local?.set({ tn_streak: p.streak });
         if (p.backupRemindDays != null) {
           setBackupRemindDays(p.backupRemindDays);
           cr?.storage?.local?.set({ tn_backup_remind: { days: p.backupRemindDays } });
@@ -1645,42 +1975,77 @@ ${parseMarkdown(content)}
   };
 
   // ── Command palette items ─────────────────────────────────────
-  type PaletteItem = { label: string; sublabel?: string; icon: string; shortcut?: string; run: () => void };
+  type PaletteItem = {
+    label: string;
+    sublabel?: string;
+    icon: string;
+    shortcut?: string;
+    run: () => void;
+  };
   const paletteItems: PaletteItem[] = React.useMemo(() => {
     const q = cmdQuery.toLowerCase().trim();
     const items: PaletteItem[] = [];
 
     // Notes — recent when no query, fuzzy-filtered when typing
     const notePool = q
-      ? allNotes.filter((n) => `${n.title ?? ''} ${n.content}`.toLowerCase().includes(q)).slice(0, 8)
+      ? allNotes
+          .filter((n) => `${n.title ?? ''} ${n.content}`.toLowerCase().includes(q))
+          .slice(0, 8)
       : [...allNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
-    notePool.forEach((n) => items.push({
-      label: stripFormatting(n.title || n.content.split('\n')[0]) || 'Untitled',
-      sublabel: stripFormatting(n.content.replace(/\n+/g, ' ')).slice(0, 72).trim(),
-      icon: n.encrypted ? '🔒' : '📝',
-      run: () => { selectNote(n); setView('note'); },
-    }));
+    notePool.forEach((n) =>
+      items.push({
+        label: stripFormatting(n.title || n.content.split('\n')[0]) || 'Untitled',
+        sublabel: stripFormatting(n.content.replace(/\n+/g, ' ')).slice(0, 72).trim(),
+        icon: n.encrypted ? ICONS.lock : ICONS.doc,
+        run: () => {
+          selectNote(n);
+          setView('note');
+        },
+      })
+    );
 
     // Actions
     const actions: PaletteItem[] = [
-      { label: 'New note',            icon: '✎',  run: () => { addNoteToContext(); setView('note'); } },
-      { label: 'All Notes',           icon: '☰',  run: () => setView('all') },
-      { label: 'Note Graph',          icon: '⬡',  run: () => setView('graph') },
-      { label: 'Settings',            icon: '⚙',  run: () => setView('settings') },
-      { label: 'Toggle Markdown',     icon: '◈',  run: () => setMdState((p) => !p) },
-      { label: 'Toggle Focus mode',   icon: '⊡',  shortcut: 'Ctrl+Shift+F', run: () => setFocusMode((p) => !p) },
-      { label: 'Toggle Typewriter',   icon: '✍',  shortcut: 'Ctrl+Shift+T', run: () => setTypewriterMode((p) => !p) },
-      { label: 'Capture screenshot',  icon: '📸', run: () => captureScreenshot() },
-      { label: 'Export to PDF',       icon: '🖨',  run: () => exportToPDF() },
-      { label: 'Scope: URL',          icon: '🔗', run: () => handleScopeChange('url') },
-      { label: 'Scope: Domain',       icon: '🌐', run: () => handleScopeChange('domain') },
-      { label: 'Scope: Workspace',    icon: '⊞',  run: () => handleScopeChange('workspace') },
-      { label: 'Scope: Global',       icon: '🌍', run: () => handleScopeChange('global') },
+      {
+        label: 'New note',
+        icon: ICONS.note,
+        run: () => {
+          addNoteToContext();
+          setView('note');
+        },
+      },
+      { label: 'All Notes', icon: ICONS.list, run: () => setView('all') },
+      { label: 'Note Graph', icon: ICONS.graph, run: () => setView('graph') },
+      { label: 'Settings', icon: ICONS.settings, run: () => setView('settings') },
+      { label: 'Toggle Markdown', icon: ICONS.markdown, run: () => setMdState((p) => !p) },
+      {
+        label: 'Toggle Focus mode',
+        icon: ICONS.focus,
+        shortcut: 'Ctrl+Shift+F',
+        run: () => setFocusMode((p) => !p),
+      },
+      {
+        label: 'Toggle Typewriter',
+        icon: ICONS.typewriter,
+        shortcut: 'Ctrl+Shift+T',
+        run: () => setTypewriterMode((p) => !p),
+      },
+      { label: 'Capture screenshot', icon: ICONS.camera, run: () => captureScreenshot() },
+      { label: 'Export to PDF', icon: ICONS.print, run: () => exportToPDF() },
+      { label: 'Scope: URL', icon: ICONS.url, run: () => handleScopeChange('url') },
+      { label: 'Scope: Domain', icon: ICONS.domain, run: () => handleScopeChange('domain') },
+      {
+        label: 'Scope: Workspace',
+        icon: ICONS.workspace,
+        run: () => handleScopeChange('workspace'),
+      },
+      { label: 'Scope: Global', icon: ICONS.global, run: () => handleScopeChange('global') },
       ...workspaces.map((ws) => ({
         label: `Switch to workspace: ${ws.name}`,
-        icon: '⊞',
+        icon: ICONS.workspace,
         run: async () => {
-          setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id;
+          setActiveWorkspaceId(ws.id);
+          wsIdRef.current = ws.id;
           await loadContextNotes(currentUrlRef.current, scopeRef.current, ws.id);
         },
       })),
@@ -1689,7 +2054,7 @@ ${parseMarkdown(content)}
     filteredActions.forEach((a) => items.push(a));
 
     return items;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cmdQuery, allNotes, workspaces]);
 
   const paletteItemsRef = React.useRef(paletteItems);
@@ -1699,12 +2064,17 @@ ${parseMarkdown(content)}
   const activeNote = contextNotes.find((n) => n.id === activeNoteId) ?? null;
 
   // Derive folder list from context notes
-  const scopeFolders = [...new Set(contextNotes.map((n) => n.folder).filter(Boolean) as string[])].sort();
+  const scopeFolders = [
+    ...new Set(contextNotes.map((n) => n.folder).filter(Boolean) as string[]),
+  ].sort();
 
   // Filter by active folder, then sort pinned first
-  const folderFilteredNotes = activeFolder === null
-    ? contextNotes
-    : contextNotes.filter((n) => (n.folder ?? '') === activeFolder || (activeFolder === '' && !n.folder));
+  const folderFilteredNotes =
+    activeFolder === null
+      ? contextNotes
+      : contextNotes.filter(
+          (n) => (n.folder ?? '') === activeFolder || (activeFolder === '' && !n.folder)
+        );
 
   const sortedContextNotes = [...folderFilteredNotes].sort((a, b) => {
     const aPin = pinnedNotes.has(a.id) ? 0 : 1;
@@ -1715,23 +2085,27 @@ ${parseMarkdown(content)}
   const activeNoteColor = activeNoteId ? (noteColors[activeNoteId] ?? '') : '';
 
   const scopeKey =
-    scope === 'url'       ? normalizeUrl(currentUrl) :
-    scope === 'domain'    ? currentDomain :
-    scope === 'workspace' ? (workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? 'Workspace') :
-    'Global';
+    scope === 'url'
+      ? normalizeUrl(currentUrl)
+      : scope === 'domain'
+        ? currentDomain
+        : scope === 'workspace'
+          ? (workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? 'Workspace')
+          : 'Global';
 
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
   const allTags = [...new Set(allNotes.flatMap((n) => n.tags))].sort();
   const filteredNotes = searchNotes(allNotes, searchQ)
-    .filter((n) => tagFilter ? n.tags.includes(tagFilter) : true)
+    .filter((n) => (tagFilter ? n.tags.includes(tagFilter) : true))
     .sort((a, b) => {
       const aPin = pinnedNotes.has(a.id) ? 0 : 1;
       const bPin = pinnedNotes.has(b.id) ? 0 : 1;
       return aPin - bPin || b.updatedAt - a.updatedAt;
     });
-  const isRestrictedUrl = !currentUrl
-    || currentUrl.startsWith('chrome://')
-    || currentUrl.startsWith('chrome-extension://');
+  const isRestrictedUrl =
+    !currentUrl ||
+    currentUrl.startsWith('chrome://') ||
+    currentUrl.startsWith('chrome-extension://');
 
   if (loading) {
     return (
@@ -1744,7 +2118,6 @@ ${parseMarkdown(content)}
 
   return (
     <div className={`sp-root${focusMode ? ' focus-mode' : ''}`}>
-
       {/* ── Header ── */}
       <div className="sp-header">
         <div className="sp-logo">
@@ -1756,7 +2129,10 @@ ${parseMarkdown(content)}
             className={`sp-workspace-pill${wsDropdown ? ' open' : ''}`}
             onClick={() => setWsDropdown(!wsDropdown)}
           >
-            <div className="sp-workspace-dot" style={{ background: activeWs ? 'var(--accent)' : 'var(--text-subtle)' }} />
+            <div
+              className="sp-workspace-dot"
+              style={{ background: activeWs ? 'var(--accent)' : 'var(--text-subtle)' }}
+            />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 80 }}>
               {activeWs ? activeWs.name : 'No Workspace'}
             </span>
@@ -1768,12 +2144,13 @@ ${parseMarkdown(content)}
                 className={`sp-ws-option${activeWorkspaceId === null ? ' active' : ''}`}
                 onClick={async () => {
                   await wsSvc.current.setActive(null);
-                  setActiveWorkspaceId(null); wsIdRef.current = null;
+                  setActiveWorkspaceId(null);
+                  wsIdRef.current = null;
                   setWsDropdown(false);
                   await loadContextNotes(currentUrlRef.current, scopeRef.current, null);
                 }}
               >
-                <span>🌍</span> No Workspace
+                <span>{ICONS.global}</span> No Workspace
                 {activeWorkspaceId === null && <span className="sp-ws-check">✓</span>}
               </div>
               {workspaces.map((ws) => (
@@ -1782,54 +2159,74 @@ ${parseMarkdown(content)}
                   className={`sp-ws-option${activeWorkspaceId === ws.id ? ' active' : ''}`}
                   onClick={async () => {
                     await wsSvc.current.setActive(ws.id);
-                    setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id;
+                    setActiveWorkspaceId(ws.id);
+                    wsIdRef.current = ws.id;
                     setWsDropdown(false);
                     await loadContextNotes(currentUrlRef.current, scopeRef.current, ws.id);
                   }}
                 >
-                  <span>⊞</span> {ws.name}
+                  <span>{ICONS.workspace}</span> {ws.name}
                   {activeWorkspaceId === ws.id && <span className="sp-ws-check">✓</span>}
                 </div>
               ))}
               <div className="sp-ws-divider" />
-              <div className="sp-ws-option manage" onClick={() => { setWsDropdown(false); setView('settings'); }}>
-                ⚙ Manage workspaces
+              <div
+                className="sp-ws-option manage"
+                onClick={() => {
+                  setWsDropdown(false);
+                  setView('settings');
+                }}
+              >
+                {ICONS.settings} Manage workspaces
               </div>
             </div>
           )}
         </div>
         <div className="sp-header-actions">
-          {tabLoading && <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />}
+          {tabLoading && (
+            <div className="sp-spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
+          )}
 
           {/* Writing streak */}
           {features.writingStreak && streak >= 2 && (
             <div className="tn-streak-badge" title={`${streak}-day writing streak! Keep it up.`}>
-              🔥 {streak}
+              {ICONS.flame} {streak}
             </div>
           )}
 
           {/* Connection status indicator */}
           {!isOnline && (
-            <div className="tn-offline-badge" title={`Offline — ${pendingSyncIds.size > 0 ? `${pendingSyncIds.size} note${pendingSyncIds.size !== 1 ? 's' : ''} queued for sync` : 'notes save locally as always'}`}>
+            <div
+              className="tn-offline-badge"
+              title={`Offline — ${pendingSyncIds.size > 0 ? `${pendingSyncIds.size} note${pendingSyncIds.size !== 1 ? 's' : ''} queued for sync` : 'notes save locally as always'}`}
+            >
               <span className="tn-offline-dot" />
-              {pendingSyncIds.size > 0 && <span className="tn-offline-count">{pendingSyncIds.size}</span>}
+              {pendingSyncIds.size > 0 && (
+                <span className="tn-offline-count">{pendingSyncIds.size}</span>
+              )}
             </div>
           )}
-          {syncedToast && (
-            <div className="tn-synced-toast">✓ All synced</div>
-          )}
+          {syncedToast && <div className="tn-synced-toast">✓ All synced</div>}
 
           {features.noteGraph && (
             <button
               className={`sp-icon-btn${view === 'graph' ? ' active' : ''}`}
               onClick={() => setView(view === 'graph' ? 'note' : 'graph')}
               title="Note graph view"
-            >⬡</button>
+            >
+              {ICONS.graph}
+            </button>
           )}
-          <button className="sp-icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
-            {theme === 'dark' ? '☀' : '☽'}
+          <button
+            className="sp-icon-btn"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title="Toggle theme"
+          >
+            {theme === 'dark' ? ICONS.light : ICONS.dark}
           </button>
-          <button className="sp-icon-btn" onClick={() => setView('settings')} title="Settings">⚙</button>
+          <button className="sp-icon-btn" onClick={() => setView('settings')} title="Settings">
+            {ICONS.settings}
+          </button>
         </div>
       </div>
 
@@ -1854,7 +2251,7 @@ ${parseMarkdown(content)}
       {view === 'note' && (
         <div className="sp-context-strip">
           <span className="sp-context-key" title={scopeKey}>
-            {tabLoading ? 'Switching tab…' : (scopeKey || '—')}
+            {tabLoading ? 'Switching tab…' : scopeKey || '—'}
           </span>
           <div className="sp-context-right">
             {!tabLoading && contextNotes.length > 0 && (
@@ -1865,7 +2262,13 @@ ${parseMarkdown(content)}
             {saved && (
               <span className="sp-save-badge">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M2 5L4 7L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path
+                    d="M2 5L4 7L8 3"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 Saved
               </span>
@@ -1877,12 +2280,13 @@ ${parseMarkdown(content)}
       {/* ── Folder bar ── */}
       {view === 'note' && !isRestrictedUrl && (scopeFolders.length > 0 || showNewFolder) && (
         <div className="sp-folder-bar" ref={folderMenuRef}>
-
           {/* All chip */}
           <button
             className={`sp-folder-chip${activeFolder === null ? ' active' : ''}`}
             onClick={() => setActiveFolder(null)}
-          >📁 All</button>
+          >
+            {ICONS.folder} All
+          </button>
 
           {/* Folder chips */}
           {scopeFolders.map((f) => (
@@ -1890,16 +2294,27 @@ ${parseMarkdown(content)}
               {renamingFolder === f ? (
                 <form
                   style={{ display: 'flex', gap: 3 }}
-                  onSubmit={(e) => { e.preventDefault(); renameFolder(f, renameFolderVal); }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    renameFolder(f, renameFolderVal);
+                  }}
                 >
                   <input
                     className="sp-folder-rename-input"
                     value={renameFolderVal}
                     onChange={(e) => setRenameFolderVal(e.target.value)}
                     autoFocus
-                    onKeyDown={(e) => { if (e.key === 'Escape') setRenamingFolder(null); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setRenamingFolder(null);
+                    }}
                   />
-                  <button type="submit" className="sp-folder-chip active" style={{ padding: '2px 6px' }}>✓</button>
+                  <button
+                    type="submit"
+                    className="sp-folder-chip active"
+                    style={{ padding: '2px 6px' }}
+                  >
+                    ✓
+                  </button>
                 </form>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1907,7 +2322,7 @@ ${parseMarkdown(content)}
                     className={`sp-folder-chip${activeFolder === f ? ' active' : ''}`}
                     onClick={() => setActiveFolder(activeFolder === f ? null : f)}
                   >
-                    📂 {f.replace(/^\//, '')}
+                    {ICONS.folder} {f.replace(/^\//, '')}
                     <span className="sp-folder-chip-count">
                       {contextNotes.filter((n) => n.folder === f).length}
                     </span>
@@ -1916,16 +2331,26 @@ ${parseMarkdown(content)}
                     className="sp-folder-menu-btn"
                     onClick={() => setFolderMenuId(folderMenuId === f ? null : f)}
                     title="Folder options"
-                  >⋯</button>
+                  >
+                    ⋯
+                  </button>
                   {folderMenuId === f && (
                     <div className="sp-folder-menu">
-                      <button className="sp-folder-menu-item" onClick={() => {
-                        setRenamingFolder(f);
-                        setRenameFolderVal(f.replace(/^\//, ''));
-                        setFolderMenuId(null);
-                      }}>✏ Rename</button>
-                      <button className="sp-folder-menu-item danger" onClick={() => deleteFolder(f)}>
-                        🗑 Delete folder
+                      <button
+                        className="sp-folder-menu-item"
+                        onClick={() => {
+                          setRenamingFolder(f);
+                          setRenameFolderVal(f.replace(/^\//, ''));
+                          setFolderMenuId(null);
+                        }}
+                      >
+                        ✏ Rename
+                      </button>
+                      <button
+                        className="sp-folder-menu-item danger"
+                        onClick={() => deleteFolder(f)}
+                      >
+                        {ICONS.trash} Delete folder
                       </button>
                     </div>
                   )}
@@ -1938,7 +2363,10 @@ ${parseMarkdown(content)}
           {showNewFolder ? (
             <form
               style={{ display: 'flex', gap: 3, flexShrink: 0 }}
-              onSubmit={(e) => { e.preventDefault(); createFolder(); }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                createFolder();
+              }}
             >
               <input
                 ref={newFolderRef}
@@ -1947,16 +2375,29 @@ ${parseMarkdown(content)}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 placeholder="Folder name…"
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName(''); }}}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setShowNewFolder(false);
+                    setNewFolderName('');
+                  }
+                }}
               />
-              <button type="submit" className="sp-folder-chip active" style={{ padding: '2px 6px' }}>✓</button>
+              <button
+                type="submit"
+                className="sp-folder-chip active"
+                style={{ padding: '2px 6px' }}
+              >
+                ✓
+              </button>
             </form>
           ) : (
             <button
               className="sp-folder-chip new"
               onClick={() => setShowNewFolder(true)}
               title="New folder"
-            >＋</button>
+            >
+              ＋
+            </button>
           )}
         </div>
       )}
@@ -1970,7 +2411,9 @@ ${parseMarkdown(content)}
             onClick={() => scrollPills('left')}
             tabIndex={canScrollLeft ? 0 : -1}
             aria-hidden={!canScrollLeft}
-          >‹</button>
+          >
+            ‹
+          </button>
 
           <div className="sp-note-pills" ref={pillsRef}>
             {sortedContextNotes.map((n, idx) => {
@@ -1982,7 +2425,9 @@ ${parseMarkdown(content)}
                 <div
                   key={n.id}
                   className={`sp-note-pill${isActive ? ' active' : ''}${isConfirm ? ' confirm' : ''}`}
-                  style={color && !isActive ? { borderLeftColor: color, borderLeftWidth: 3 } : undefined}
+                  style={
+                    color && !isActive ? { borderLeftColor: color, borderLeftWidth: 3 } : undefined
+                  }
                   onClick={() => {
                     if (isConfirm) {
                       deletePillNote(n.id);
@@ -1991,26 +2436,34 @@ ${parseMarkdown(content)}
                       selectNote(n);
                     }
                   }}
-                  title={isConfirm ? 'Click to confirm delete' : (n.title || `Note ${idx + 1}`)}
+                  title={isConfirm ? 'Click to confirm delete' : n.title || `Note ${idx + 1}`}
                   role="button"
                 >
-                  {isPinned && <span style={{ fontSize: 8, flexShrink: 0 }}>📌</span>}
-                  <span className="sp-pill-label">
-                    {isConfirm ? 'Delete?' : pillLabel(n, idx)}
-                  </span>
+                  {isPinned && <span style={{ fontSize: 9, flexShrink: 0 }}>{ICONS.pin}</span>}
+                  <span className="sp-pill-label">{isConfirm ? 'Delete?' : pillLabel(n, idx)}</span>
                   {isActive && !isConfirm && (
                     <button
                       className="sp-pill-x"
-                      onClick={(e) => { e.stopPropagation(); setDeletePillConfirmId(n.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletePillConfirmId(n.id);
+                      }}
                       title="Delete this note"
-                    >×</button>
+                    >
+                      ×
+                    </button>
                   )}
                   {isConfirm && (
                     <button
                       className="sp-pill-x cancel"
-                      onClick={(e) => { e.stopPropagation(); setDeletePillConfirmId(null); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletePillConfirmId(null);
+                      }}
                       title="Cancel"
-                    >×</button>
+                    >
+                      ×
+                    </button>
                   )}
                 </div>
               );
@@ -2023,14 +2476,21 @@ ${parseMarkdown(content)}
             onClick={() => scrollPills('right')}
             tabIndex={canScrollRight ? 0 : -1}
             aria-hidden={!canScrollRight}
-          >›</button>
+          >
+            ›
+          </button>
 
           <button
             className="sp-note-pill-add"
-            onClick={() => { setDeletePillConfirmId(null); addNoteToContext(); }}
+            onClick={() => {
+              setDeletePillConfirmId(null);
+              addNoteToContext();
+            }}
             title="Add another note for this context"
             disabled={tabLoading}
-          >+</button>
+          >
+            +
+          </button>
 
           {/* Templates dropdown */}
           <div style={{ position: 'relative', flexShrink: 0 }} ref={templatesRef}>
@@ -2039,11 +2499,17 @@ ${parseMarkdown(content)}
               onClick={() => setShowTemplates(!showTemplates)}
               title="Insert template"
               style={{ fontSize: 12, borderStyle: 'solid' }}
-            >≡</button>
+            >
+              ≡
+            </button>
             {showTemplates && (
               <div className="sp-templates-dropdown">
                 {TEMPLATES.map((tpl) => (
-                  <button key={tpl.label} className="sp-template-item" onClick={() => applyTemplate(tpl)}>
+                  <button
+                    key={tpl.label}
+                    className="sp-template-item"
+                    onClick={() => applyTemplate(tpl)}
+                  >
                     {tpl.label}
                   </button>
                 ))}
@@ -2055,93 +2521,209 @@ ${parseMarkdown(content)}
 
       {/* ── Main content ── */}
       <div className="sp-content">
-
         {/* Note editor */}
         {view === 'note' && (
           <div className="sp-note-view">
             {isRestrictedUrl ? (
               <div className="sp-empty-state" style={{ flex: 1 }}>
-                <div className="sp-empty-icon">🔒</div>
+                <div className="sp-empty-icon">{ICONS.lock}</div>
                 <div className="sp-empty-title">Can't access this page</div>
-                <div className="sp-empty-desc">TabNotes can't add notes to Chrome system pages. Navigate to any website.</div>
+                <div className="sp-empty-desc">
+                  TabNotes can't add notes to Chrome system pages. Navigate to any website.
+                </div>
               </div>
             ) : (
               <>
                 <input
                   className="sp-note-title-input"
                   value={title}
-                  onChange={(e) => { setTitle(e.target.value); schedule(content, e.target.value, tags); }}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    schedule(content, e.target.value, tags);
+                  }}
                   onBlur={() => {
                     const plainContent = stripFormatting(content);
                     if (!title.trim() && plainContent.trim()) {
                       const auto = autoTitleFromContent(plainContent);
-                      if (auto) { setTitle(auto); schedule(content, auto, tags); }
+                      if (auto) {
+                        setTitle(auto);
+                        schedule(content, auto, tags);
+                      }
                     }
                   }}
-                  placeholder={stripFormatting(content).trim() ? autoTitleFromContent(stripFormatting(content)) || 'Title…' : 'Title…'}
+                  placeholder={
+                    stripFormatting(content).trim()
+                      ? autoTitleFromContent(stripFormatting(content)) || 'Title…'
+                      : 'Title…'
+                  }
                   disabled={tabLoading}
                 />
 
                 {/* ── Formatting toolbar ── */}
                 {!preview && features.formattingBar && (
                   <div className="sp-fmt-toolbar" ref={fmtRef}>
-                    <button className={`sp-fmt-btn sp-fmt-bold${fmtActive.bold ? ' sp-fmt-active' : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); wrapSel('**', '**'); }}
-                      title="Bold (Ctrl+B)"><b>B</b></button>
-                    <button className={`sp-fmt-btn sp-fmt-italic${fmtActive.italic ? ' sp-fmt-active' : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); wrapSel('*', '*'); }}
-                      title="Italic (Ctrl+I)"><em>I</em></button>
-                    <button className={`sp-fmt-btn sp-fmt-underline${fmtActive.underline ? ' sp-fmt-active' : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); wrapSel('__', '__'); }}
-                      title="Underline (Ctrl+U)"><u>U</u></button>
-                    <button className={`sp-fmt-btn sp-fmt-strike${fmtActive.strike ? ' sp-fmt-active' : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); wrapSel('~~', '~~'); }}
-                      title="Strikethrough"><s>S</s></button>
-                    <button className={`sp-fmt-btn sp-fmt-code${fmtActive.code ? ' sp-fmt-active' : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); wrapSel('`', '`'); }}
-                      title="Inline code">{'</>'}</button>
+                    <button
+                      className={`sp-fmt-btn sp-fmt-bold${fmtActive.bold ? ' sp-fmt-active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        wrapSel('**', '**');
+                      }}
+                      title="Bold (Ctrl+B)"
+                    >
+                      <b>B</b>
+                    </button>
+                    <button
+                      className={`sp-fmt-btn sp-fmt-italic${fmtActive.italic ? ' sp-fmt-active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        wrapSel('*', '*');
+                      }}
+                      title="Italic (Ctrl+I)"
+                    >
+                      <em>I</em>
+                    </button>
+                    <button
+                      className={`sp-fmt-btn sp-fmt-underline${fmtActive.underline ? ' sp-fmt-active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        wrapSel('__', '__');
+                      }}
+                      title="Underline (Ctrl+U)"
+                    >
+                      <u>U</u>
+                    </button>
+                    <button
+                      className={`sp-fmt-btn sp-fmt-strike${fmtActive.strike ? ' sp-fmt-active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        wrapSel('~~', '~~');
+                      }}
+                      title="Strikethrough"
+                    >
+                      <s>S</s>
+                    </button>
+                    <button
+                      className={`sp-fmt-btn sp-fmt-code${fmtActive.code ? ' sp-fmt-active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        wrapSel('`', '`');
+                      }}
+                      title="Inline code"
+                    >
+                      {'</>'}
+                    </button>
                     <div className="sp-fmt-sep" />
                     {/* Highlight — yellow background on selected text */}
-                    <button className={`sp-fmt-btn sp-fmt-highlight-btn${fmtActive.highlight ? ' sp-fmt-active' : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); wrapSel('==', '=='); }}
-                      title="Highlight selected text">
-                      <span style={{ background: fmtActive.highlight ? 'transparent' : '#fef08a', padding: '0 3px', borderRadius: 2, color: fmtActive.highlight ? 'inherit' : '#333' }}>H</span>
+                    <button
+                      className={`sp-fmt-btn sp-fmt-highlight-btn${fmtActive.highlight ? ' sp-fmt-active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        wrapSel('==', '==');
+                      }}
+                      title="Highlight selected text"
+                    >
+                      <span
+                        style={{
+                          background: fmtActive.highlight ? 'transparent' : '#fef08a',
+                          padding: '0 3px',
+                          borderRadius: 2,
+                          color: fmtActive.highlight ? 'inherit' : '#333',
+                        }}
+                      >
+                        H
+                      </span>
                     </button>
                     {/* Text & highlight color picker */}
                     <div style={{ position: 'relative' }}>
                       <button
                         className="sp-fmt-btn sp-fmt-color-btn"
-                        onMouseDown={(e) => { e.preventDefault(); setShowColorPicker((v) => !v); setColorMode('text'); }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setShowColorPicker((v) => !v);
+                          setColorMode('text');
+                        }}
                         title="Text / highlight color"
                       >
-                        <span style={{ borderBottom: '3px solid currentColor', paddingBottom: 1, fontWeight: 700 }}>A</span>
+                        <span
+                          style={{
+                            borderBottom: '3px solid currentColor',
+                            paddingBottom: 1,
+                            fontWeight: 700,
+                          }}
+                        >
+                          A
+                        </span>
                       </button>
                       {showColorPicker && (
-                        <div className="sp-fmt-color-popup" onMouseDown={(e) => e.stopPropagation()}>
+                        <div
+                          className="sp-fmt-color-popup"
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
                           <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
                             <button
-                              style={{ flex: 1, fontSize: 9, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--border)', background: colorMode === 'text' ? 'var(--accent)' : 'var(--bg-subtle)', color: colorMode === 'text' ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}
-                              onMouseDown={(e) => { e.preventDefault(); setColorMode('text'); }}
-                            >Text</button>
+                              style={{
+                                flex: 1,
+                                fontSize: 9,
+                                padding: '2px 4px',
+                                borderRadius: 4,
+                                border: '1px solid var(--border)',
+                                background:
+                                  colorMode === 'text' ? 'var(--accent)' : 'var(--bg-subtle)',
+                                color: colorMode === 'text' ? '#fff' : 'var(--text-muted)',
+                                cursor: 'pointer',
+                              }}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setColorMode('text');
+                              }}
+                            >
+                              Text
+                            </button>
                             <button
-                              style={{ flex: 1, fontSize: 9, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--border)', background: colorMode === 'highlight' ? 'var(--accent)' : 'var(--bg-subtle)', color: colorMode === 'highlight' ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}
-                              onMouseDown={(e) => { e.preventDefault(); setColorMode('highlight'); }}
-                            >Mark</button>
+                              style={{
+                                flex: 1,
+                                fontSize: 9,
+                                padding: '2px 4px',
+                                borderRadius: 4,
+                                border: '1px solid var(--border)',
+                                background:
+                                  colorMode === 'highlight' ? 'var(--accent)' : 'var(--bg-subtle)',
+                                color: colorMode === 'highlight' ? '#fff' : 'var(--text-muted)',
+                                cursor: 'pointer',
+                              }}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setColorMode('highlight');
+                              }}
+                            >
+                              Mark
+                            </button>
                           </div>
                           {colorMode === 'text'
                             ? TEXT_COLORS.map((c) => (
-                                <div key={c.value} className="sp-fmt-swatch" style={{ background: c.value }}
-                                  onMouseDown={(e) => { e.preventDefault(); applyColor(c.value, 'text'); }}
+                                <div
+                                  key={c.value}
+                                  className="sp-fmt-swatch"
+                                  style={{ background: c.value }}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    applyColor(c.value, 'text');
+                                  }}
                                   title={c.name}
                                 />
                               ))
                             : HIGHLIGHT_COLORS.map((c) => (
-                                <div key={c.value} className="sp-fmt-swatch" style={{ background: c.value }}
-                                  onMouseDown={(e) => { e.preventDefault(); applyColor(c.value, 'highlight'); }}
+                                <div
+                                  key={c.value}
+                                  className="sp-fmt-swatch"
+                                  style={{ background: c.value }}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    applyColor(c.value, 'highlight');
+                                  }}
                                   title={c.name}
                                 />
-                              ))
-                          }
+                              ))}
                         </div>
                       )}
                     </div>
@@ -2151,19 +2733,31 @@ ${parseMarkdown(content)}
                 {preview && markdownEnabled ? (
                   <div
                     className="sp-markdown-preview"
-                    style={activeNoteColor ? { borderLeft: `3px solid ${activeNoteColor}`, paddingLeft: 11 } : undefined}
-                    dangerouslySetInnerHTML={{ __html: content ? parseMarkdown(content) : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>' }}
+                    style={
+                      activeNoteColor
+                        ? { borderLeft: `3px solid ${activeNoteColor}`, paddingLeft: 11 }
+                        : undefined
+                    }
+                    dangerouslySetInnerHTML={{
+                      __html: content
+                        ? parseMarkdown(content)
+                        : '<p style="color:var(--text-subtle);font-style:italic">Nothing to preview yet.</p>',
+                    }}
                     onClick={(e) => {
                       const t = e.target as HTMLElement;
                       // Wiki link navigation
                       const wl = t.closest('.tn-wikilink') as HTMLElement | null;
                       if (wl) {
                         const wiki = (wl.dataset.wiki ?? '').toLowerCase();
-                        const target = allNotes.find((n) =>
-                          (n.title ?? '').toLowerCase() === wiki ||
-                          stripFormatting(n.content).split('\n')[0].toLowerCase() === wiki
+                        const target = allNotes.find(
+                          (n) =>
+                            (n.title ?? '').toLowerCase() === wiki ||
+                            stripFormatting(n.content).split('\n')[0].toLowerCase() === wiki
                         );
-                        if (target) { selectNote(target); setView('note'); }
+                        if (target) {
+                          selectNote(target);
+                          setView('note');
+                        }
                         return;
                       }
                       // Checkbox toggle
@@ -2172,14 +2766,14 @@ ${parseMarkdown(content)}
                       const taskText = span?.textContent?.trim() ?? '';
                       const checked = (t as HTMLInputElement).checked;
                       const from = checked ? `- [ ] ${taskText}` : `- [x] ${taskText}`;
-                      const to   = checked ? `- [x] ${taskText}` : `- [ ] ${taskText}`;
+                      const to = checked ? `- [x] ${taskText}` : `- [ ] ${taskText}`;
                       const next = content.replace(from, to);
                       setContent(next);
                       schedule(next, title, tags);
                     }}
                   />
                 ) : (
-                  <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div className="sp-editor-scroll-shell">
                     <div
                       ref={editorRef}
                       className={`sp-note-textarea sp-rich-editor${typewriterMode ? ' tn-typewriter' : ''}`}
@@ -2187,7 +2781,13 @@ ${parseMarkdown(content)}
                       suppressContentEditableWarning
                       autoFocus={!tabLoading}
                       data-placeholder={`Note for this ${scope}…`}
-                      style={{ fontSize: fontSize, textAlign: defaultAlign as React.CSSProperties['textAlign'], ...(activeNoteColor ? { borderLeft: `3px solid ${activeNoteColor}`, paddingLeft: 11 } : {}) }}
+                      style={{
+                        fontSize: fontSize,
+                        textAlign: defaultAlign as React.CSSProperties['textAlign'],
+                        ...(activeNoteColor
+                          ? { borderLeft: `3px solid ${activeNoteColor}`, paddingLeft: 11 }
+                          : {}),
+                      }}
                       onInput={(e) => {
                         const el = e.currentTarget;
                         // Chrome leaves <br> in empty contentEditable — normalize to ''
@@ -2201,7 +2801,10 @@ ${parseMarkdown(content)}
                             const range = sel.getRangeAt(0);
                             const node = range.startContainer;
                             if (node.nodeType === Node.TEXT_NODE) {
-                              const textBefore = (node.textContent ?? '').slice(0, range.startOffset);
+                              const textBefore = (node.textContent ?? '').slice(
+                                0,
+                                range.startOffset
+                              );
                               const m = textBefore.match(/\[\[([^\]]*?)$/);
                               if (m) {
                                 setWikiQuery(m[1]);
@@ -2210,34 +2813,66 @@ ${parseMarkdown(content)}
                                 r2.setEnd(range.startContainer, range.startOffset);
                                 const anchorEnd = r2.toString().length;
                                 setWikiAnchor({ start: anchorEnd - m[0].length, end: anchorEnd });
-                              } else { setWikiQuery(null); setWikiAnchor(null); }
-                            } else { setWikiQuery(null); setWikiAnchor(null); }
+                              } else {
+                                setWikiQuery(null);
+                                setWikiAnchor(null);
+                              }
+                            } else {
+                              setWikiQuery(null);
+                              setWikiAnchor(null);
+                            }
                           }
                         }
                       }}
                       onKeyDown={(e) => {
                         if (!(e.ctrlKey || e.metaKey)) return;
-                        if (e.key === 'b') { e.preventDefault(); wrapSel('**'); }
-                        if (e.key === 'i') { e.preventDefault(); wrapSel('*'); }
-                        if (e.key === 'u') { e.preventDefault(); wrapSel('__'); }
+                        if (e.key === 'b') {
+                          e.preventDefault();
+                          wrapSel('**');
+                        }
+                        if (e.key === 'i') {
+                          e.preventDefault();
+                          wrapSel('*');
+                        }
+                        if (e.key === 'u') {
+                          e.preventDefault();
+                          wrapSel('__');
+                        }
                       }}
                     />
                     {features.wikiLinks && wikiQuery !== null && (
                       <div className="tn-wiki-suggest">
                         {allNotes
-                          .filter((n) => n.id !== activeNoteId && (n.title || stripFormatting(n.content).split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase()))
+                          .filter(
+                            (n) =>
+                              n.id !== activeNoteId &&
+                              (n.title || stripFormatting(n.content).split('\n')[0])
+                                .toLowerCase()
+                                .includes(wikiQuery!.toLowerCase())
+                          )
                           .slice(0, 6)
                           .map((n) => {
                             const label = n.title || stripFormatting(n.content).split('\n')[0];
                             return (
-                              <button key={n.id} className="tn-wiki-item" onMouseDown={(e) => { e.preventDefault(); insertWikiLink(label); }}>
+                              <button
+                                key={n.id}
+                                className="tn-wiki-item"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  insertWikiLink(label);
+                                }}
+                              >
                                 {label.slice(0, 45)}
                               </button>
                             );
                           })}
-                        {allNotes.filter((n) => n.id !== activeNoteId && (n.title || stripFormatting(n.content).split('\n')[0]).toLowerCase().includes(wikiQuery!.toLowerCase())).length === 0 && (
-                          <span className="tn-wiki-empty">No matching notes</span>
-                        )}
+                        {allNotes.filter(
+                          (n) =>
+                            n.id !== activeNoteId &&
+                            (n.title || stripFormatting(n.content).split('\n')[0])
+                              .toLowerCase()
+                              .includes(wikiQuery!.toLowerCase())
+                        ).length === 0 && <span className="tn-wiki-empty">No matching notes</span>}
                       </div>
                     )}
                   </div>
@@ -2251,15 +2886,21 @@ ${parseMarkdown(content)}
                       <button
                         key={n.id}
                         className="sp-suggestion-item"
-                        onClick={() => { selectNote(n); setSuggestions([]); }}
+                        onClick={() => {
+                          selectNote(n);
+                          setSuggestions([]);
+                        }}
                         title={stripFormatting(n.content).slice(0, 120)}
                       >
                         <span className="sp-suggestion-title">
-                          {stripFormatting(n.title || n.content.split('\n')[0]).slice(0, 36) || 'Untitled'}
+                          {stripFormatting(n.title || n.content.split('\n')[0]).slice(0, 36) ||
+                            'Untitled'}
                         </span>
                       </button>
                     ))}
-                    <button className="sp-suggestions-dismiss" onClick={() => setSuggestions([])}>×</button>
+                    <button className="sp-suggestions-dismiss" onClick={() => setSuggestions([])}>
+                      ×
+                    </button>
                   </div>
                 )}
 
@@ -2268,20 +2909,27 @@ ${parseMarkdown(content)}
                   <input
                     className="sp-tags-input"
                     value={tags}
-                    onChange={(e) => { setTags(e.target.value); schedule(content, title, e.target.value); }}
+                    onChange={(e) => {
+                      setTags(e.target.value);
+                      schedule(content, title, e.target.value);
+                    }}
                     placeholder="tag1, tag2, tag3"
                     disabled={tabLoading}
                   />
                 </div>
 
                 <div className="sp-note-meta">
-                  <span className="sp-note-meta-text">{stripFormatting(content).split(/\s+/).filter(Boolean).length}w</span>
+                  <span className="sp-note-meta-text">
+                    {stripFormatting(content).split(/\s+/).filter(Boolean).length}w
+                  </span>
                   <span className="sp-note-meta-sep">·</span>
                   <span className="sp-note-meta-text">{stripFormatting(content).length}ch</span>
                   {readingTime(stripFormatting(content)) && (
                     <>
                       <span className="sp-note-meta-sep">·</span>
-                      <span className="sp-note-meta-text">{readingTime(stripFormatting(content))}</span>
+                      <span className="sp-note-meta-text">
+                        {readingTime(stripFormatting(content))}
+                      </span>
                     </>
                   )}
                   <span className="sp-note-meta-spacer" />
@@ -2293,36 +2941,68 @@ ${parseMarkdown(content)}
                         className={`sp-meta-toggle${activeNote?.folder ? ' active' : ''}`}
                         onClick={() => setShowMovePicker(!showMovePicker)}
                         title={activeNote?.folder ? `In ${activeNote.folder}` : 'Move to folder'}
-                      >📁{activeNote?.folder ? ' ' + activeNote.folder.replace(/^\//, '') : ''}</button>
+                      >
+                        {ICONS.folder}
+                        {activeNote?.folder ? ' ' + activeNote.folder.replace(/^\//, '') : ''}
+                      </button>
                       {showMovePicker && (
                         <div className="sp-move-picker">
                           <button
                             className={`sp-move-item${!activeNote?.folder ? ' active' : ''}`}
                             onClick={() => moveNoteToFolder(activeNoteId, undefined)}
-                          >📄 No folder (root)</button>
+                          >
+                            {ICONS.doc} No folder (root)
+                          </button>
                           {scopeFolders.map((f) => (
                             <button
                               key={f}
                               className={`sp-move-item${activeNote?.folder === f ? ' active' : ''}`}
                               onClick={() => moveNoteToFolder(activeNoteId, f)}
-                            >📂 {f.replace(/^\//, '')}</button>
+                            >
+                              {ICONS.folder} {f.replace(/^\//, '')}
+                            </button>
                           ))}
                           <div className="sp-move-divider" />
                           <button
                             className="sp-move-item new"
-                            onClick={() => { setShowMovePicker(false); setShowNewFolder(true); }}
-                          >＋ New folder</button>
+                            onClick={() => {
+                              setShowMovePicker(false);
+                              setShowNewFolder(true);
+                            }}
+                          >
+                            ＋ New folder
+                          </button>
                         </div>
                       )}
                     </div>
                   )}
 
                   {/* Insert date */}
-                  <button className="sp-meta-toggle" onClick={insertDatetime} title="Insert date/time (Ctrl+D)">📅</button>
+                  <button
+                    className="sp-meta-toggle"
+                    onClick={insertDatetime}
+                    title="Insert date/time (Ctrl+D)"
+                  >
+                    {ICONS.calendar}
+                  </button>
 
                   {/* Font size */}
-                  <button className="sp-meta-toggle" onClick={() => changeFontSize(-1)} title="Smaller text" style={{ fontWeight: 700 }}>A-</button>
-                  <button className="sp-meta-toggle" onClick={() => changeFontSize(1)} title="Larger text" style={{ fontWeight: 700 }}>A+</button>
+                  <button
+                    className="sp-meta-toggle"
+                    onClick={() => changeFontSize(-1)}
+                    title="Smaller text"
+                    style={{ fontWeight: 700 }}
+                  >
+                    A-
+                  </button>
+                  <button
+                    className="sp-meta-toggle"
+                    onClick={() => changeFontSize(1)}
+                    title="Larger text"
+                    style={{ fontWeight: 700 }}
+                  >
+                    A+
+                  </button>
 
                   {/* Pin */}
                   {activeNoteId && (
@@ -2330,7 +3010,9 @@ ${parseMarkdown(content)}
                       className={`sp-meta-toggle${pinnedNotes.has(activeNoteId) ? ' active' : ''}`}
                       onClick={() => togglePin(activeNoteId)}
                       title={pinnedNotes.has(activeNoteId) ? 'Unpin note' : 'Pin note'}
-                    >📌</button>
+                    >
+                      {ICONS.pin}
+                    </button>
                   )}
 
                   {/* Color picker */}
@@ -2338,19 +3020,48 @@ ${parseMarkdown(content)}
                     <div style={{ position: 'relative' }}>
                       <button
                         className={`sp-meta-toggle${activeNoteColor ? ' active' : ''}`}
-                        onClick={() => setColorPickerNoteId(colorPickerNoteId ? null : activeNoteId)}
+                        onClick={() =>
+                          setColorPickerNoteId(colorPickerNoteId ? null : activeNoteId)
+                        }
                         title="Note color"
-                        style={activeNoteColor ? { borderLeftColor: activeNoteColor, borderLeftWidth: 3, color: activeNoteColor } : undefined}
-                      >🎨</button>
+                        style={
+                          activeNoteColor
+                            ? {
+                                borderLeftColor: activeNoteColor,
+                                borderLeftWidth: 3,
+                                color: activeNoteColor,
+                              }
+                            : undefined
+                        }
+                      >
+                        {ICONS.palette}
+                      </button>
                       {colorPickerNoteId === activeNoteId && (
                         <div className="sp-color-picker">
                           {NOTE_COLORS.map((c) => (
                             <button
                               key={c.value}
                               className={`sp-color-swatch${activeNoteColor === c.value ? ' active' : ''}`}
-                              style={c.value
-                                ? { background: c.value, border: '2px solid ' + (activeNoteColor === c.value ? c.value : 'transparent'), boxShadow: activeNoteColor === c.value ? `0 0 0 2px ${c.value}55` : 'none' }
-                                : { background: 'var(--bg-subtle)', border: '2px solid var(--border)', boxShadow: activeNoteColor === c.value ? '0 0 0 2px var(--accent)' : 'none' }
+                              style={
+                                c.value
+                                  ? {
+                                      background: c.value,
+                                      border:
+                                        '2px solid ' +
+                                        (activeNoteColor === c.value ? c.value : 'transparent'),
+                                      boxShadow:
+                                        activeNoteColor === c.value
+                                          ? `0 0 0 2px ${c.value}55`
+                                          : 'none',
+                                    }
+                                  : {
+                                      background: 'var(--bg-subtle)',
+                                      border: '2px solid var(--border)',
+                                      boxShadow:
+                                        activeNoteColor === c.value
+                                          ? '0 0 0 2px var(--accent)'
+                                          : 'none',
+                                    }
                               }
                               onClick={() => setNoteColor(activeNoteId, c.value)}
                               title={c.label}
@@ -2363,33 +3074,63 @@ ${parseMarkdown(content)}
 
                   {/* Export current note */}
                   {(content || title) && (
-                    <button className="sp-meta-toggle" onClick={exportCurrentNote} title="Export note as .md">↓md</button>
+                    <button
+                      className="sp-meta-toggle"
+                      onClick={exportCurrentNote}
+                      title="Export note as .md"
+                    >
+                      ↓md
+                    </button>
                   )}
 
                   {/* Export to PDF */}
                   {(content || title) && (
-                    <button className="sp-meta-toggle" onClick={exportToPDF} title="Export to PDF / Print">🖨</button>
+                    <button
+                      className="sp-meta-toggle"
+                      onClick={exportToPDF}
+                      title="Export to PDF / Print"
+                    >
+                      {ICONS.print}
+                    </button>
                   )}
 
                   {/* Screenshot capture */}
                   {markdownEnabled && (
-                    <button className="sp-meta-toggle" onClick={captureScreenshot} title="Capture screenshot of current tab">📸</button>
+                    <button
+                      className="sp-meta-toggle"
+                      onClick={captureScreenshot}
+                      title="Capture screenshot of current tab"
+                    >
+                      {ICONS.camera}
+                    </button>
                   )}
 
                   {/* Typewriter mode */}
                   <button
                     className={`sp-meta-toggle${typewriterMode ? ' active' : ''}`}
                     onClick={() => setTypewriterMode(!typewriterMode)}
-                    title={typewriterMode ? 'Exit typewriter mode (Ctrl+Shift+T)' : 'Typewriter mode — cursor stays centered (Ctrl+Shift+T)'}
-                  >✍</button>
+                    title={
+                      typewriterMode
+                        ? 'Exit typewriter mode (Ctrl+Shift+T)'
+                        : 'Typewriter mode — cursor stays centered (Ctrl+Shift+T)'
+                    }
+                  >
+                    {ICONS.typewriter}
+                  </button>
 
                   {/* Encrypt note */}
                   {activeNoteId && (
                     <button
                       className={`sp-meta-toggle${activeNote?.encrypted ? ' active' : ''}`}
-                      onClick={() => { setShowEncPrompt(activeNote?.encrypted ? 'unlock' : 'lock'); setEncPassword(''); setEncError(''); }}
+                      onClick={() => {
+                        setShowEncPrompt(activeNote?.encrypted ? 'unlock' : 'lock');
+                        setEncPassword('');
+                        setEncError('');
+                      }}
                       title={activeNote?.encrypted ? 'Decrypt note' : 'Encrypt note with password'}
-                    >{activeNote?.encrypted ? '🔒' : '🔓'}</button>
+                    >
+                      {activeNote?.encrypted ? ICONS.lock : ICONS.unlock}
+                    </button>
                   )}
 
                   {/* Focus mode */}
@@ -2397,14 +3138,18 @@ ${parseMarkdown(content)}
                     className={`sp-meta-toggle${focusMode ? ' active' : ''}`}
                     onClick={() => setFocusMode(!focusMode)}
                     title={focusMode ? 'Exit focus mode (Esc)' : 'Focus mode (Ctrl+Shift+F)'}
-                  >{focusMode ? '⊠' : '⊡'}</button>
+                  >
+                    {focusMode ? '⊠' : '⊡'}
+                  </button>
 
                   {/* Reference panel (dual view) */}
                   <button
                     className={`sp-meta-toggle${showRefPanel ? ' active' : ''}`}
                     onClick={() => setShowRefPanel(!showRefPanel)}
                     title={showRefPanel ? 'Close reference panel' : 'Open reference panel'}
-                  >⊟</button>
+                  >
+                    ⊟
+                  </button>
 
                   {/* Copy */}
                   {content && (
@@ -2424,7 +3169,9 @@ ${parseMarkdown(content)}
                         className={`sp-meta-toggle${showHistory ? ' active' : ''}`}
                         onClick={() => setShowHistory(!showHistory)}
                         title="Version history"
-                      >🕐</button>
+                      >
+                        {ICONS.history}
+                      </button>
                       {showHistory && (
                         <div className="sp-history-panel">
                           <div className="sp-history-header">Version History</div>
@@ -2439,8 +3186,12 @@ ${parseMarkdown(content)}
                                 setShowHistory(false);
                               }}
                             >
-                              <span className="sp-history-time">{formatRelativeTime(v.savedAt)}</span>
-                              <span className="sp-history-preview">{stripFormatting(v.content).slice(0, 55) || '(empty)'}</span>
+                              <span className="sp-history-time">
+                                {formatRelativeTime(v.savedAt)}
+                              </span>
+                              <span className="sp-history-preview">
+                                {stripFormatting(v.content).slice(0, 55) || '(empty)'}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -2456,17 +3207,26 @@ ${parseMarkdown(content)}
                         onClick={() => {
                           if (activeNote?.reminderAt) {
                             noteSvc.current.updateNote(activeNoteId, { reminderAt: undefined });
-                            cr?.runtime?.sendMessage({ type: 'CLEAR_REMINDER', noteId: activeNoteId });
+                            cr?.runtime?.sendMessage({
+                              type: 'CLEAR_REMINDER',
+                              noteId: activeNoteId,
+                            });
                             const url = currentUrlRef.current;
-                            noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current).then(setContextNotes);
+                            noteSvc.current
+                              .getNotesByScope(scopeRef.current, url, wsIdRef.current)
+                              .then(setContextNotes);
                           } else {
                             setShowReminderPicker(!showReminderPicker);
                           }
                         }}
-                        title={activeNote?.reminderAt
-                          ? `Reminder set for ${new Date(activeNote.reminderAt).toLocaleString()} — click to clear`
-                          : 'Set reminder'}
-                      >{activeNote?.reminderAt ? '⏰✓' : '⏰'}</button>
+                        title={
+                          activeNote?.reminderAt
+                            ? `Reminder set for ${new Date(activeNote.reminderAt).toLocaleString()} — click to clear`
+                            : 'Set reminder'
+                        }
+                      >
+                        {activeNote?.reminderAt ? '⏰✓' : '⏰'}
+                      </button>
                       {showReminderPicker && (
                         <div className="sp-reminder-picker">
                           <div className="sp-reminder-label">Remind me at</div>
@@ -2483,23 +3243,32 @@ ${parseMarkdown(content)}
                             onClick={async () => {
                               const ts = new Date(reminderInput).getTime();
                               await noteSvc.current.updateNote(activeNoteId, { reminderAt: ts });
-                              cr?.runtime?.sendMessage({ type: 'SET_REMINDER', noteId: activeNoteId, reminderAt: ts, noteTitle: title || autoTitleFromContent(content) });
+                              cr?.runtime?.sendMessage({
+                                type: 'SET_REMINDER',
+                                noteId: activeNoteId,
+                                reminderAt: ts,
+                                noteTitle: title || autoTitleFromContent(content),
+                              });
                               const url = currentUrlRef.current;
-                              const notes = await noteSvc.current.getNotesByScope(scopeRef.current, url, wsIdRef.current);
+                              const notes = await noteSvc.current.getNotesByScope(
+                                scopeRef.current,
+                                url,
+                                wsIdRef.current
+                              );
                               setContextNotes(notes);
                               setShowReminderPicker(false);
                               setReminderInput('');
                             }}
-                          >Set reminder</button>
+                          >
+                            Set reminder
+                          </button>
                         </div>
                       )}
                     </div>
                   )}
 
                   {/* Clip feedback badge */}
-                  {clipFeedback && (
-                    <span className="sp-clip-badge">📋 Clipped!</span>
-                  )}
+                  {clipFeedback && <span className="sp-clip-badge">{ICONS.check} Clipped!</span>}
 
                   {/* Markdown preview */}
                   {markdownEnabled && (
@@ -2507,7 +3276,7 @@ ${parseMarkdown(content)}
                       className={`sp-meta-toggle${preview ? ' active' : ''}`}
                       onClick={() => setPreview(!preview)}
                     >
-                      {preview ? '✎' : '◈'}
+                      {preview ? ICONS.note : ICONS.markdown}
                     </button>
                   )}
                 </div>
@@ -2521,53 +3290,77 @@ ${parseMarkdown(content)}
           <div className="sp-ref-panel">
             <div className="sp-ref-panel-header">
               <span className="sp-ref-panel-title">Reference</span>
-              <button className="sp-icon-btn" style={{ fontSize: 11 }} onClick={() => { setRefNoteId(null); setShowRefPanel(false); }}>✕</button>
+              <button
+                className="sp-icon-btn"
+                style={{ fontSize: 11 }}
+                onClick={() => {
+                  setRefNoteId(null);
+                  setShowRefPanel(false);
+                }}
+              >
+                ✕
+              </button>
             </div>
             {refNoteId === null ? (
               <div className="sp-ref-note-list">
                 {contextNotes.filter((n) => n.id !== activeNoteId).length === 0 ? (
                   <div className="sp-ref-empty">No other notes in this scope to reference.</div>
                 ) : (
-                  contextNotes.filter((n) => n.id !== activeNoteId).map((n, i) => (
+                  contextNotes
+                    .filter((n) => n.id !== activeNoteId)
+                    .map((n, i) => (
+                      <button
+                        key={n.id}
+                        className="sp-ref-note-item"
+                        onClick={() => setRefNoteId(n.id)}
+                      >
+                        <span className="sp-ref-note-label">{pillLabel(n, i)}</span>
+                        <span className="sp-ref-note-preview">
+                          {stripFormatting(n.content).slice(0, 60) || '—'}
+                        </span>
+                      </button>
+                    ))
+                )}
+                {allNotes
+                  .filter((n) => n.id !== activeNoteId && !contextNotes.find((c) => c.id === n.id))
+                  .slice(0, 8)
+                  .map((n, i) => (
                     <button
                       key={n.id}
                       className="sp-ref-note-item"
                       onClick={() => setRefNoteId(n.id)}
                     >
                       <span className="sp-ref-note-label">{pillLabel(n, i)}</span>
-                      <span className="sp-ref-note-preview">{stripFormatting(n.content).slice(0, 60) || '—'}</span>
+                      <span className="sp-ref-note-preview" style={{ color: 'var(--text-subtle)' }}>
+                        {n.scope} · {stripFormatting(n.content).slice(0, 40) || '—'}
+                      </span>
                     </button>
-                  ))
-                )}
-                {allNotes.filter((n) => n.id !== activeNoteId && !contextNotes.find((c) => c.id === n.id)).slice(0, 8).map((n, i) => (
-                  <button
-                    key={n.id}
-                    className="sp-ref-note-item"
-                    onClick={() => setRefNoteId(n.id)}
-                  >
-                    <span className="sp-ref-note-label">{pillLabel(n, i)}</span>
-                    <span className="sp-ref-note-preview" style={{ color: 'var(--text-subtle)' }}>
-                      {n.scope} · {stripFormatting(n.content).slice(0, 40) || '—'}
-                    </span>
-                  </button>
-                ))}
+                  ))}
               </div>
-            ) : (() => {
-              const rn = allNotes.find((n) => n.id === refNoteId);
-              if (!rn) return null;
-              return (
-                <div className="sp-ref-note-view">
-                  <div className="sp-ref-note-view-header">
-                    <button className="sp-ref-back" onClick={() => setRefNoteId(null)}>← Back</button>
-                    <span className="sp-ref-note-view-title">{rn.title || pillLabel(rn, 0)}</span>
+            ) : (
+              (() => {
+                const rn = allNotes.find((n) => n.id === refNoteId);
+                if (!rn) return null;
+                return (
+                  <div className="sp-ref-note-view">
+                    <div className="sp-ref-note-view-header">
+                      <button className="sp-ref-back" onClick={() => setRefNoteId(null)}>
+                        ← Back
+                      </button>
+                      <span className="sp-ref-note-view-title">{rn.title || pillLabel(rn, 0)}</span>
+                    </div>
+                    <div
+                      className="sp-ref-note-content sp-markdown-preview"
+                      dangerouslySetInnerHTML={{
+                        __html: rn.content
+                          ? parseMarkdown(rn.content)
+                          : '<p style="color:var(--text-subtle);font-style:italic">Empty note</p>',
+                      }}
+                    />
                   </div>
-                  <div
-                    className="sp-ref-note-content sp-markdown-preview"
-                    dangerouslySetInnerHTML={{ __html: rn.content ? parseMarkdown(rn.content) : '<p style="color:var(--text-subtle);font-style:italic">Empty note</p>' }}
-                  />
-                </div>
-              );
-            })()}
+                );
+              })()
+            )}
           </div>
         )}
 
@@ -2587,8 +3380,18 @@ ${parseMarkdown(content)}
                 {searchQ && (
                   <button
                     onClick={() => setSearchQ('')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 12, padding: 0, fontFamily: 'var(--font)' }}
-                  >✕</button>
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-subtle)',
+                      fontSize: 12,
+                      padding: 0,
+                      fontFamily: 'var(--font)',
+                    }}
+                  >
+                    ✕
+                  </button>
                 )}
               </div>
               <button
@@ -2609,14 +3412,18 @@ ${parseMarkdown(content)}
             {allTags.length > 0 && (
               <div className="sp-tag-chips">
                 {tagFilter && (
-                  <button className="sp-tag-chip clear" onClick={() => setTagFilter(null)}>✕ Clear</button>
+                  <button className="sp-tag-chip clear" onClick={() => setTagFilter(null)}>
+                    ✕ Clear
+                  </button>
                 )}
                 {allTags.map((t) => (
                   <button
                     key={t}
                     className={`sp-tag-chip${tagFilter === t ? ' active' : ''}`}
                     onClick={() => setTagFilter(tagFilter === t ? null : t)}
-                  >#{t}</button>
+                  >
+                    #{t}
+                  </button>
                 ))}
               </div>
             )}
@@ -2624,41 +3431,51 @@ ${parseMarkdown(content)}
             <div className="sp-notes-list">
               {filteredNotes.length === 0 ? (
                 <div className="sp-empty-state">
-                  <div className="sp-empty-icon">✎</div>
-                  <div className="sp-empty-title">{searchQ || tagFilter ? 'No results' : 'No notes yet'}</div>
+                  <div className="sp-empty-icon">{ICONS.note}</div>
+                  <div className="sp-empty-title">
+                    {searchQ || tagFilter ? 'No results' : 'No notes yet'}
+                  </div>
                   <div className="sp-empty-desc">
-                    {searchQ ? `Nothing matched "${searchQ}"` : tagFilter ? `No notes tagged #${tagFilter}` : 'Switch to Note tab and start writing.'}
+                    {searchQ
+                      ? `Nothing matched "${searchQ}"`
+                      : tagFilter
+                        ? `No notes tagged #${tagFilter}`
+                        : 'Switch to Note tab and start writing.'}
                   </div>
                 </div>
               ) : (
                 // ── Group by scope ──────────────────────────────
-                SCOPE_OPTIONS
-                  .map((scopeOpt) => ({
-                    scopeOpt,
-                    notes: filteredNotes.filter((n) => n.scope === scopeOpt.value),
-                  }))
-                  .map(({ scopeOpt, notes }) => {
-                    const isCollapsed = collapsedScopes.has(scopeOpt.value);
-                    return (
-                      <div key={scopeOpt.value} className="sp-scope-group">
-                        {/* Group header */}
-                        <button
-                          className="sp-group-header"
-                          onClick={() => toggleScope(scopeOpt.value)}
-                        >
-                          <span className="sp-group-chevron">{isCollapsed ? '▸' : '▾'}</span>
-                          <span className="sp-group-icon">{scopeOpt.icon}</span>
-                          <span className="sp-group-label">{scopeOpt.label}</span>
-                          <span className={`sp-group-count${notes.length === 0 ? ' empty' : ''}`}>{notes.length}</span>
-                        </button>
+                SCOPE_OPTIONS.map((scopeOpt) => ({
+                  scopeOpt,
+                  notes: filteredNotes.filter((n) => n.scope === scopeOpt.value),
+                })).map(({ scopeOpt, notes }) => {
+                  const isCollapsed = collapsedScopes.has(scopeOpt.value);
+                  return (
+                    <div key={scopeOpt.value} className="sp-scope-group">
+                      {/* Group header */}
+                      <button
+                        className="sp-group-header"
+                        onClick={() => toggleScope(scopeOpt.value)}
+                      >
+                        <span className="sp-group-chevron">{isCollapsed ? '▸' : '▾'}</span>
+                        <span className="sp-group-icon">{scopeOpt.icon}</span>
+                        <span className="sp-group-label">{scopeOpt.label}</span>
+                        <span className={`sp-group-count${notes.length === 0 ? ' empty' : ''}`}>
+                          {notes.length}
+                        </span>
+                      </button>
 
-                        {/* Empty state when group is open but has no notes */}
-                        {!isCollapsed && notes.length === 0 && (
-                          <div className="sp-group-empty">No {scopeOpt.label.toLowerCase()} notes yet</div>
-                        )}
+                      {/* Empty state when group is open but has no notes */}
+                      {!isCollapsed && notes.length === 0 && (
+                        <div className="sp-group-empty">
+                          No {scopeOpt.label.toLowerCase()} notes yet
+                        </div>
+                      )}
 
-                        {/* Notes in this group */}
-                        {!isCollapsed && notes.length > 0 && notes.map((n) => {
+                      {/* Notes in this group */}
+                      {!isCollapsed &&
+                        notes.length > 0 &&
+                        notes.map((n) => {
                           const isSelected = selectedId === n.id;
                           const isBulkSelected = bulkSelectedIds.has(n.id);
                           return (
@@ -2676,29 +3493,47 @@ ${parseMarkdown(content)}
                                   return;
                                 }
                                 if ((e.target as HTMLElement).closest('.sp-card-delete')) return;
-                                if (deleteCardConfirmId === n.id) { setDeleteCardConfirmId(null); return; }
+                                if (deleteCardConfirmId === n.id) {
+                                  setDeleteCardConfirmId(null);
+                                  return;
+                                }
                                 setDeleteCardConfirmId(null);
                                 setSelectedId(isSelected ? null : n.id);
-                                setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
-                                setContent(n.content); setTitle(n.title ?? ''); setTags(n.tags.join(', '));
-                                setScope(n.scope); scopeRef.current = n.scope;
-                                setView('note'); setPreview(false); setConfirmDelete(false);
+                                setActiveNoteId(n.id);
+                                activeNoteIdRef.current = n.id;
+                                setContent(n.content);
+                                setTitle(n.title ?? '');
+                                setTags(n.tags.join(', '));
+                                setScope(n.scope);
+                                scopeRef.current = n.scope;
+                                setView('note');
+                                setPreview(false);
                               }}
                             >
                               {selectMode && (
-                                <span className={`sp-card-checkbox${isBulkSelected ? ' checked' : ''}`}>
+                                <span
+                                  className={`sp-card-checkbox${isBulkSelected ? ' checked' : ''}`}
+                                >
                                   {isBulkSelected ? '✓' : ''}
                                 </span>
                               )}
                               <div className="sp-card-top">
                                 {pinnedNotes.has(n.id) && (
-                                  <span className="sp-card-pin" title="Pinned">📌</span>
+                                  <span className="sp-card-pin" title="Pinned">
+                                    {ICONS.pin}
+                                  </span>
                                 )}
-                                <span className="sp-card-time">{formatRelativeTime(n.updatedAt)}</span>
+                                <span className="sp-card-time">
+                                  {formatRelativeTime(n.updatedAt)}
+                                </span>
                                 {!selectMode && (
                                   <button
                                     className={`sp-card-delete${deleteCardConfirmId === n.id ? ' confirming' : ''}`}
-                                    title={deleteCardConfirmId === n.id ? 'Click to confirm delete' : 'Delete note'}
+                                    title={
+                                      deleteCardConfirmId === n.id
+                                        ? 'Click to confirm delete'
+                                        : 'Delete note'
+                                    }
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (deleteCardConfirmId === n.id) {
@@ -2708,7 +3543,7 @@ ${parseMarkdown(content)}
                                       }
                                     }}
                                   >
-                                    {deleteCardConfirmId === n.id ? 'Delete?' : '🗑'}
+                                    {deleteCardConfirmId === n.id ? 'Delete?' : ICONS.trash}
                                   </button>
                                 )}
                               </div>
@@ -2716,11 +3551,17 @@ ${parseMarkdown(content)}
                               {n.content && <div className="sp-card-excerpt">{n.content}</div>}
                               {n.tags.length > 0 && (
                                 <div className="sp-card-tags">
-                                  {n.tags.slice(0, 4).map((t) => <span key={t} className="sp-card-tag">#{t}</span>)}
+                                  {n.tags.slice(0, 4).map((t) => (
+                                    <span key={t} className="sp-card-tag">
+                                      #{t}
+                                    </span>
+                                  ))}
                                 </div>
                               )}
                               <div className="sp-card-scope-ctx">
-                                <span className="sp-card-scope-icon">{SCOPE_OPTIONS.find((s) => s.value === n.scope)?.icon}</span>
+                                <span className="sp-card-scope-icon">
+                                  {SCOPE_OPTIONS.find((s) => s.value === n.scope)?.icon}
+                                </span>
                                 <span className="sp-card-scope-key">{n.scopeKey || n.scope}</span>
                                 {n.scope === 'url' && n.scopeKey && (
                                   <a
@@ -2730,15 +3571,17 @@ ${parseMarkdown(content)}
                                     className="sp-card-open-url"
                                     onClick={(e) => e.stopPropagation()}
                                     title="Open this URL"
-                                  >↗</a>
+                                  >
+                                    ↗
+                                  </a>
                                 )}
                               </div>
                             </div>
                           );
                         })}
-                      </div>
-                    );
-                  })
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -2763,7 +3606,9 @@ ${parseMarkdown(content)}
                         setBulkDeleteConfirm(false);
                       }}
                     >
-                      {bulkSelectedIds.size === filteredNotes.length ? 'Deselect all' : 'Select all'}
+                      {bulkSelectedIds.size === filteredNotes.length
+                        ? 'Deselect all'
+                        : 'Select all'}
                     </button>
                     <button
                       className={`sp-bulk-delete${bulkDeleteConfirm ? ' confirming' : ''}`}
@@ -2790,17 +3635,29 @@ ${parseMarkdown(content)}
               onClick={async () => {
                 const url = currentUrlRef.current || 'https://tabnotes.app';
                 const n = await noteSvc.current.createNote({
-                  scope: defaultScope, url, workspaceId: wsIdRef.current,
+                  scope: defaultScope,
+                  url,
+                  workspaceId: wsIdRef.current,
                 });
-                setActiveNoteId(n.id); activeNoteIdRef.current = n.id;
-                setContent(''); setTitle(''); setTags('');
-                setScope(defaultScope); scopeRef.current = defaultScope;
-                const notes = await noteSvc.current.getNotesByScope(defaultScope, url, wsIdRef.current);
+                setActiveNoteId(n.id);
+                activeNoteIdRef.current = n.id;
+                setContent('');
+                setTitle('');
+                setTags('');
+                setScope(defaultScope);
+                scopeRef.current = defaultScope;
+                const notes = await noteSvc.current.getNotesByScope(
+                  defaultScope,
+                  url,
+                  wsIdRef.current
+                );
                 setContextNotes(notes);
                 await refreshAllNotes();
                 setView('note');
               }}
-            >+</button>
+            >
+              +
+            </button>
           </div>
         )}
 
@@ -2814,18 +3671,23 @@ ${parseMarkdown(content)}
                   className={`sp-chat-scope-btn${chatScope === 'domain' ? ' active' : ''}`}
                   onClick={() => setChatScope('domain')}
                   title="Ask about notes from this domain"
-                >🌐 {currentDomain || 'Domain'}</button>
+                >
+                  {ICONS.domain} {currentDomain || 'Domain'}
+                </button>
                 <button
                   className={`sp-chat-scope-btn${chatScope === 'all' ? ' active' : ''}`}
                   onClick={() => setChatScope('all')}
                   title="Ask about all your notes"
-                >🌍 All notes</button>
+                >
+                  {ICONS.global} All notes
+                </button>
               </div>
               <span className="sp-chat-ctx-count">
                 {(() => {
-                  const pool = chatScope === 'domain'
-                    ? allNotes.filter((n) => n.scope === 'domain' && n.scopeKey === currentDomain)
-                    : allNotes;
+                  const pool =
+                    chatScope === 'domain'
+                      ? allNotes.filter((n) => n.scope === 'domain' && n.scopeKey === currentDomain)
+                      : allNotes;
                   return `${pool.length} note${pool.length !== 1 ? 's' : ''} in context`;
                 })()}
               </span>
@@ -2837,7 +3699,7 @@ ${parseMarkdown(content)}
                 <div className="sp-chat-empty">
                   {!groqKey ? (
                     <div className="sp-chat-no-key">
-                      <span className="sp-chat-no-key-icon">🔑</span>
+                      <span className="sp-chat-no-key-icon">{ICONS.key}</span>
                       <p>Add your Groq API key in Settings to start chatting with your notes.</p>
                       <button className="sp-chat-goto-settings" onClick={() => setView('settings')}>
                         Open Settings →
@@ -2845,15 +3707,24 @@ ${parseMarkdown(content)}
                     </div>
                   ) : (
                     <div className="sp-chat-hint">
-                      <span className="sp-chat-hint-icon">💬</span>
+                      <span className="sp-chat-hint-icon">{ICONS.chat}</span>
                       <p>Ask anything about your notes.</p>
                       <div className="sp-chat-examples">
-                        {['What ideas did I note here?', 'Summarize my notes', 'What should I follow up on?'].map((ex) => (
+                        {[
+                          'What ideas did I note here?',
+                          'Summarize my notes',
+                          'What should I follow up on?',
+                        ].map((ex) => (
                           <button
                             key={ex}
                             className="sp-chat-example"
-                            onClick={() => { setChatInput(ex); chatInputRef.current?.focus(); }}
-                          >{ex}</button>
+                            onClick={() => {
+                              setChatInput(ex);
+                              chatInputRef.current?.focus();
+                            }}
+                          >
+                            {ex}
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -2863,9 +3734,14 @@ ${parseMarkdown(content)}
               {chatMessages.map((msg, i) => (
                 <div key={i} className={`sp-chat-msg sp-chat-msg-${msg.role}`}>
                   <div className="sp-chat-bubble">
-                    {msg.content || (msg.role === 'assistant' && chatLoading && i === chatMessages.length - 1
-                      ? <span className="sp-chat-typing"><span /><span /><span /></span>
-                      : null)}
+                    {msg.content ||
+                      (msg.role === 'assistant' && chatLoading && i === chatMessages.length - 1 ? (
+                        <span className="sp-chat-typing">
+                          <span />
+                          <span />
+                          <span />
+                        </span>
+                      ) : null)}
                   </div>
                 </div>
               ))}
@@ -2879,7 +3755,12 @@ ${parseMarkdown(content)}
                 className="sp-chat-input"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChat();
+                  }
+                }}
                 placeholder="Ask about your notes…"
                 disabled={chatLoading}
                 autoComplete="off"
@@ -2889,11 +3770,15 @@ ${parseMarkdown(content)}
                 onClick={sendChat}
                 disabled={chatLoading || !chatInput.trim()}
                 title="Send (Enter)"
-              >{chatLoading ? '…' : '↑'}</button>
+              >
+                {chatLoading ? '…' : '↑'}
+              </button>
             </div>
 
             {chatMessages.length > 0 && (
-              <button className="sp-chat-clear" onClick={() => setChatMessages([])}>Clear chat</button>
+              <button className="sp-chat-clear" onClick={() => setChatMessages([])}>
+                Clear chat
+              </button>
             )}
           </div>
         )}
@@ -2902,27 +3787,54 @@ ${parseMarkdown(content)}
         {view === 'graph' && (
           <div className="sp-graph-view">
             <div className="sp-graph-header">
-              <span className="sp-graph-title">⬡ Note Graph</span>
-              <button className="sp-icon-btn" style={{ fontSize: 11 }} onClick={() => setView('note')}>✕</button>
+              <span className="sp-graph-title">{ICONS.graph} Note Graph</span>
+              <button
+                className="sp-icon-btn"
+                style={{ fontSize: 11 }}
+                onClick={() => setView('note')}
+              >
+                ✕
+              </button>
             </div>
             <div className="sp-graph-legend">
-              <span className="sp-graph-legend-item"><span style={{ color: '#2b5be8' }}>─</span> Wiki link</span>
-              <span className="sp-graph-legend-item"><span style={{ color: '#c8d0e0' }}>╌</span> Shared tag</span>
+              <span className="sp-graph-legend-item">
+                <span style={{ color: '#2b5be8' }}>─</span> Wiki link
+              </span>
+              <span className="sp-graph-legend-item">
+                <span style={{ color: '#c8d0e0' }}>╌</span> Shared tag
+              </span>
               <span className="sp-graph-legend-sep" />
-              <span className="sp-graph-legend-item" style={{ color: 'var(--text-subtle)', fontSize: 10 }}>Click a node to open note</span>
+              <span
+                className="sp-graph-legend-item"
+                style={{ color: 'var(--text-subtle)', fontSize: 10 }}
+              >
+                Click a node to open note
+              </span>
             </div>
             <NoteGraph
               notes={allNotes}
               activeId={activeNoteId}
-              onSelect={(n) => { selectNote(n); setView('note'); }}
+              onSelect={(n) => {
+                selectNote(n);
+                setView('note');
+              }}
             />
             {allNotes.length === 0 && (
-              <p style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: 13, marginTop: 24 }}>
+              <p
+                style={{
+                  textAlign: 'center',
+                  color: 'var(--text-subtle)',
+                  fontSize: 13,
+                  marginTop: 24,
+                }}
+              >
                 No notes yet. Create some notes to see the graph.
               </p>
             )}
             <div className="sp-graph-stats">
-              <span>{allNotes.length} note{allNotes.length !== 1 ? 's' : ''}</span>
+              <span>
+                {allNotes.length} note{allNotes.length !== 1 ? 's' : ''}
+              </span>
               <span>·</span>
               <span>{allNotes.filter((n) => /\[\[/.test(n.content)).length} with wiki links</span>
             </div>
@@ -2936,13 +3848,25 @@ ${parseMarkdown(content)}
               <div className="sp-settings-label">Active Features</div>
               {(
                 [
-                  { key: 'formattingBar',    label: 'Formatting Toolbar',  desc: 'B / I / U / color bar above the editor' },
-                  { key: 'smartSuggestions', label: 'Smart Suggestions',   desc: 'Related notes appear while you write' },
-                  { key: 'writingStreak',    label: 'Writing Streak',      desc: '🔥 Day-streak badge in the header' },
-                  { key: 'wikiLinks',        label: 'Wiki Links',          desc: '[[Note name]] autocomplete' },
-                  { key: 'cmdPalette',       label: 'Command Palette',     desc: 'Ctrl+K quick actions' },
-                  { key: 'chatView',         label: 'Ask Your Notes',      desc: 'AI chat tab powered by Groq' },
-                  { key: 'noteGraph',        label: 'Note Graph',          desc: 'Visual relationship graph (⬡ button)' },
+                  {
+                    key: 'formattingBar',
+                    label: 'Formatting Toolbar',
+                    desc: 'B / I / U / color bar above the editor',
+                  },
+                  {
+                    key: 'smartSuggestions',
+                    label: 'Smart Suggestions',
+                    desc: 'Related notes appear while you write',
+                  },
+                  {
+                    key: 'writingStreak',
+                    label: 'Writing Streak',
+                    desc: 'Day-streak badge in the header',
+                  },
+                  { key: 'wikiLinks', label: 'Wiki Links', desc: '[[Note name]] autocomplete' },
+                  { key: 'cmdPalette', label: 'Command Palette', desc: 'Ctrl+K quick actions' },
+                  { key: 'chatView', label: 'Ask Your Notes', desc: 'AI chat tab powered by Groq' },
+                  { key: 'noteGraph', label: 'Note Graph', desc: 'Visual relationship graph' },
                 ] as { key: keyof Features; label: string; desc: string }[]
               ).map((f) => (
                 <div key={f.key} className="sp-settings-row" style={{ marginTop: 8 }}>
@@ -2966,7 +3890,14 @@ ${parseMarkdown(content)}
                 <div className="sp-settings-row-title">Groq API Key</div>
                 <div className="sp-settings-row-desc">
                   Powers "Ask your notes" chat. Free key at{' '}
-                  <a href="https://console.groq.com" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>console.groq.com</a>
+                  <a
+                    href="https://console.groq.com"
+                    target="_blank"
+                    rel="noopener"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    console.groq.com
+                  </a>
                 </div>
               </div>
               <div className="sp-groq-key-row">
@@ -2986,8 +3917,12 @@ ${parseMarkdown(content)}
                     }
                   }}
                 />
-                <button className="sp-groq-key-eye" onClick={() => setGroqKeyVisible((v) => !v)} title={groqKeyVisible ? 'Hide' : 'Show'}>
-                  {groqKeyVisible ? '🙈' : '👁'}
+                <button
+                  className="sp-groq-key-eye"
+                  onClick={() => setGroqKeyVisible((v) => !v)}
+                  title={groqKeyVisible ? 'Hide' : 'Show'}
+                >
+                  {groqKeyVisible ? ICONS.unlock : ICONS.lock}
                 </button>
                 <button
                   className="sp-groq-key-save"
@@ -2996,12 +3931,16 @@ ${parseMarkdown(content)}
                     cr?.storage?.local?.set({ tn_groq_key: key });
                     setGroqKey(key);
                   }}
-                >Save</button>
+                >
+                  Save
+                </button>
               </div>
               {groqKey && (
                 <div className="sp-groq-key-status">
                   ✓ Key saved —{' '}
-                  <button className="sp-groq-open-chat" onClick={() => setView('chat')}>Open chat →</button>
+                  <button className="sp-groq-open-chat" onClick={() => setView('chat')}>
+                    Open chat →
+                  </button>
                 </div>
               )}
             </div>
@@ -3010,8 +3949,16 @@ ${parseMarkdown(content)}
               <div className="sp-settings-label">Appearance</div>
               <div className="sp-theme-grid">
                 {(['light', 'dark', 'system'] as const).map((t) => (
-                  <button key={t} className={`sp-theme-btn${theme === t ? ' active' : ''}`} onClick={() => setTheme(t)}>
-                    {t === 'light' ? '☀ Light' : t === 'dark' ? '☽ Dark' : '◑ System'}
+                  <button
+                    key={t}
+                    className={`sp-theme-btn${theme === t ? ' active' : ''}`}
+                    onClick={() => setTheme(t)}
+                  >
+                    {t === 'light'
+                      ? `${ICONS.light} Light`
+                      : t === 'dark'
+                        ? `${ICONS.dark} Dark`
+                        : 'System'}
                   </button>
                 ))}
               </div>
@@ -3024,9 +3971,14 @@ ${parseMarkdown(content)}
               <div className="sp-settings-row">
                 <div className="sp-settings-row-info">
                   <div className="sp-settings-row-title">Markdown Preview</div>
-                  <div className="sp-settings-row-desc">Write in Markdown with rendered preview</div>
+                  <div className="sp-settings-row-desc">
+                    Write in Markdown with rendered preview
+                  </div>
                 </div>
-                <button className={`sp-toggle ${markdownEnabled ? 'on' : 'off'}`} onClick={() => setMarkdown(!markdownEnabled)}>
+                <button
+                  className={`sp-toggle ${markdownEnabled ? 'on' : 'off'}`}
+                  onClick={() => setMarkdown(!markdownEnabled)}
+                >
                   <div className="sp-toggle-knob" />
                 </button>
               </div>
@@ -3038,9 +3990,21 @@ ${parseMarkdown(content)}
                   <div className="sp-settings-row-desc">Editor text size</div>
                 </div>
                 <div className="sp-fontsize-control">
-                  <button className="sp-fontsize-btn" onClick={() => changeFontSize(-1)} disabled={fontSize <= 11}>A−</button>
+                  <button
+                    className="sp-fontsize-btn"
+                    onClick={() => changeFontSize(-1)}
+                    disabled={fontSize <= 11}
+                  >
+                    A−
+                  </button>
                   <span className="sp-fontsize-val">{fontSize}px</span>
-                  <button className="sp-fontsize-btn" onClick={() => changeFontSize(1)} disabled={fontSize >= 16}>A+</button>
+                  <button
+                    className="sp-fontsize-btn"
+                    onClick={() => changeFontSize(1)}
+                    disabled={fontSize >= 16}
+                  >
+                    A+
+                  </button>
                 </div>
               </div>
 
@@ -3051,7 +4015,7 @@ ${parseMarkdown(content)}
                   <div className="sp-settings-row-desc">Default alignment for the editor</div>
                 </div>
                 <div className="sp-align-control">
-                  {(['left','center','right'] as const).map((a) => (
+                  {(['left', 'center', 'right'] as const).map((a) => (
                     <button
                       key={a}
                       className={`sp-align-btn${defaultAlign === a ? ' active' : ''}`}
@@ -3094,7 +4058,11 @@ ${parseMarkdown(content)}
                 </div>
                 <button
                   className={`sp-toggle ${digestEnabled ? 'on' : 'off'}`}
-                  onClick={() => { const next = !digestEnabled; setDigestEnabled(next); saveDigest(next, digestTime); }}
+                  onClick={() => {
+                    const next = !digestEnabled;
+                    setDigestEnabled(next);
+                    saveDigest(next, digestTime);
+                  }}
                 >
                   <div className="sp-toggle-knob" />
                 </button>
@@ -3106,15 +4074,21 @@ ${parseMarkdown(content)}
                     type="time"
                     className="sp-digest-time-input"
                     value={digestTime}
-                    onChange={(e) => { setDigestTime(e.target.value); saveDigest(digestEnabled, e.target.value); }}
+                    onChange={(e) => {
+                      setDigestTime(e.target.value);
+                      saveDigest(digestEnabled, e.target.value);
+                    }}
                   />
                 </div>
               )}
               {digestEnabled && (
                 <div className="sp-digest-preview">
-                  <span className="sp-digest-preview-icon">📓</span>
-                  <span>Every day at <strong>{digestTime}</strong> you'll get a notification like:<br />
-                  <em>"3 notes updated in the last 24h — 47 total"</em></span>
+                  <span className="sp-digest-preview-icon">{ICONS.doc}</span>
+                  <span>
+                    Every day at <strong>{digestTime}</strong> you'll get a notification like:
+                    <br />
+                    <em>"3 notes updated in the last 24h — 47 total"</em>
+                  </span>
                 </div>
               )}
             </div>
@@ -3126,10 +4100,11 @@ ${parseMarkdown(content)}
                   className={`sp-scope-row${activeWorkspaceId === null ? ' active' : ''}`}
                   onClick={async () => {
                     await wsSvc.current.setActive(null);
-                    setActiveWorkspaceId(null); wsIdRef.current = null;
+                    setActiveWorkspaceId(null);
+                    wsIdRef.current = null;
                   }}
                 >
-                  <span className="sp-scope-row-icon">🌍</span>
+                  <span className="sp-scope-row-icon">{ICONS.global}</span>
                   <div className="sp-scope-row-info">
                     <div className="sp-scope-row-name">No Workspace</div>
                     <div className="sp-scope-row-desc">Global notes</div>
@@ -3142,13 +4117,16 @@ ${parseMarkdown(content)}
                     className={`sp-scope-row${activeWorkspaceId === ws.id ? ' active' : ''}`}
                     onClick={async () => {
                       await wsSvc.current.setActive(ws.id);
-                      setActiveWorkspaceId(ws.id); wsIdRef.current = ws.id;
+                      setActiveWorkspaceId(ws.id);
+                      wsIdRef.current = ws.id;
                     }}
                   >
-                    <span className="sp-scope-row-icon">⊞</span>
+                    <span className="sp-scope-row-icon">{ICONS.workspace}</span>
                     <div className="sp-scope-row-info">
                       <div className="sp-scope-row-name">{ws.name}</div>
-                      <div className="sp-scope-row-desc">{allNotes.filter((n) => n.workspaceId === ws.id).length} notes</div>
+                      <div className="sp-scope-row-desc">
+                        {allNotes.filter((n) => n.workspaceId === ws.id).length} notes
+                      </div>
                     </div>
                     {activeWorkspaceId === ws.id && <span className="sp-scope-row-check">✓</span>}
                   </div>
@@ -3164,9 +4142,22 @@ ${parseMarkdown(content)}
                   { label: 'Workspaces', value: workspaces.length },
                   { label: 'Tags', value: [...new Set(allNotes.flatMap((n) => n.tags))].length },
                 ].map((s) => (
-                  <div key={s.label} style={{ padding: '10px 8px', borderRadius: 'var(--r-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.5px' }}>{s.value}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 1 }}>{s.label}</div>
+                  <div
+                    key={s.label}
+                    style={{
+                      padding: '10px 8px',
+                      borderRadius: 'var(--r-md)',
+                      background: 'var(--bg-subtle)',
+                      border: '1px solid var(--border)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.5px' }}>
+                      {s.value}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 1 }}>
+                      {s.label}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -3183,7 +4174,10 @@ ${parseMarkdown(content)}
                     <div className="sp-data-btn-desc">Download all notes as JSON</div>
                   </div>
                 </button>
-                <button className="sp-data-btn import" onClick={() => importInputRef.current?.click()}>
+                <button
+                  className="sp-data-btn import"
+                  onClick={() => importInputRef.current?.click()}
+                >
                   <span className="sp-data-btn-icon">↑</span>
                   <div className="sp-data-btn-info">
                     <div className="sp-data-btn-title">Import backup</div>
@@ -3205,10 +4199,23 @@ ${parseMarkdown(content)}
               )}
 
               {/* Backup reminder interval */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, padding: '8px 10px', borderRadius: 'var(--r-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: 10,
+                  padding: '8px 10px',
+                  borderRadius: 'var(--r-md)',
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border)',
+                }}
+              >
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600 }}>Backup reminder</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 1 }}>Notify if you haven't exported in</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 1 }}>
+                    Notify if you haven't exported in
+                  </div>
                 </div>
                 <select
                   value={backupRemindDays}
@@ -3218,7 +4225,15 @@ ${parseMarkdown(content)}
                     cr?.storage?.local?.set({ tn_backup_remind: { days } });
                     cr?.runtime?.sendMessage({ type: 'SET_BACKUP_REMIND', days });
                   }}
-                  style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)', cursor: 'pointer' }}
+                  style={{
+                    fontSize: 11,
+                    padding: '3px 6px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                  }}
                 >
                   <option value={0}>Off</option>
                   <option value={7}>7 days</option>
@@ -3242,17 +4257,45 @@ ${parseMarkdown(content)}
 
             <div className="sp-pro-card">
               <div className="sp-pro-title">✦ TabNotes Pro — Coming Soon</div>
-              <div className="sp-pro-desc">Sync across devices, web dashboard access, note history and premium themes.</div>
-              <a href="https://github.com/mikepchelper-spec/TabNotes" target="_blank" rel="noopener" className="sp-pro-btn">
+              <div className="sp-pro-desc">
+                Sync across devices, web dashboard access, note history and premium themes.
+              </div>
+              <a
+                href="https://github.com/mikepchelper-spec/TabNotes"
+                target="_blank"
+                rel="noopener"
+                className="sp-pro-btn"
+              >
                 View on GitHub →
               </a>
             </div>
 
             <button
               onClick={() => setView('about')}
-              style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
+              style={{
+                width: '100%',
+                marginTop: 6,
+                padding: '10px 14px',
+                borderRadius: 'var(--r-md)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-subtle)',
+                color: 'var(--text-muted)',
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)';
+              }}
             >
               <span>✦</span> About TabNotes
             </button>
@@ -3265,32 +4308,168 @@ ${parseMarkdown(content)}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
               <button
                 onClick={() => setView('settings')}
-                style={{ padding: '4px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}
-              >← Back</button>
-              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', letterSpacing: '-0.3px' }}>About TabNotes</span>
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 'var(--r-md)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-subtle)',
+                  color: 'var(--text-muted)',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                ← Back
+              </button>
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: 15,
+                  color: 'var(--text)',
+                  letterSpacing: '-0.3px',
+                }}
+              >
+                About TabNotes
+              </span>
             </div>
 
             <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
-              <div style={{ width: 48, height: 48, background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22, fontWeight: 800, margin: '0 auto 12px', boxShadow: '0 4px 16px rgba(37,99,235,0.3)' }}>T</div>
-              <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.4px', marginBottom: 6 }}>TabNotes</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: 240, margin: '0 auto' }}>Premium local-first notes for every tab, URL, domain, and workspace.</div>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                  borderRadius: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontSize: 22,
+                  fontWeight: 800,
+                  margin: '0 auto 12px',
+                  boxShadow: '0 4px 16px rgba(37,99,235,0.3)',
+                }}
+              >
+                T
+              </div>
+              <div
+                style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.4px', marginBottom: 6 }}
+              >
+                TabNotes
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                  lineHeight: 1.5,
+                  maxWidth: 240,
+                  margin: '0 auto',
+                }}
+              >
+                Premium local-first notes for every tab, URL, domain, and workspace.
+              </div>
             </div>
 
             {[
-              { title: 'Editor', icon: '✍', color: '#2b5be8', items: ['WYSIWYG rich text (B / I / U / S / Code / Highlight)', 'Markdown preview (toggle ↓md)', 'Typewriter mode', 'Text alignment & font size', 'Date/time stamp (Ctrl+D)', 'Keyboard shortcuts'] },
-              { title: 'Organization', icon: '??', color: '#0ea5e9', items: ['4 scopes: URL · Domain · Workspace · Global', 'Multiple notes per scope (pills)', 'Workspaces & folders', 'Tags, pin notes & note colors'] },
-              { title: 'Productivity', icon: '⚡', color: '#f59e0b', items: ['Templates (Daily Log, Meeting, Todo, Standup)', 'Wiki links [[note]] with autocomplete', 'Command palette Ctrl+K', 'Web clipper', 'Writing streak tracker', 'Reminders & Daily digest'] },
-              { title: 'Intelligence', icon: '??', color: '#8b5cf6', items: ['Smart suggestions while you write', 'AI Chat powered by Groq', 'Note graph visualization'] },
-              { title: 'Data & Privacy', icon: '??', color: '#22c55e', items: ['Auto note history & restore', 'Export .md · Import/export JSON', 'AES-256 note encryption', 'Local-first — no server, no account', 'Open source (MIT)'] },
+              {
+                title: 'Editor',
+                icon: ICONS.typewriter,
+                color: '#2b5be8',
+                items: [
+                  'WYSIWYG rich text (B / I / U / S / Code / Highlight)',
+                  'Markdown preview (toggle ↓md)',
+                  'Typewriter mode',
+                  'Text alignment & font size',
+                  'Date/time stamp (Ctrl+D)',
+                  'Keyboard shortcuts',
+                ],
+              },
+              {
+                title: 'Organization',
+                icon: ICONS.folder,
+                color: '#0ea5e9',
+                items: [
+                  '4 scopes: URL · Domain · Workspace · Global',
+                  'Multiple notes per scope (pills)',
+                  'Workspaces & folders',
+                  'Tags, pin notes & note colors',
+                ],
+              },
+              {
+                title: 'Productivity',
+                icon: ICONS.spark,
+                color: '#f59e0b',
+                items: [
+                  'Templates (Daily Log, Meeting, Todo, Standup)',
+                  'Wiki links [[note]] with autocomplete',
+                  'Command palette Ctrl+K',
+                  'Web clipper',
+                  'Writing streak tracker',
+                  'Reminders & Daily digest',
+                ],
+              },
+              {
+                title: 'Intelligence',
+                icon: ICONS.graph,
+                color: '#8b5cf6',
+                items: [
+                  'Smart suggestions while you write',
+                  'AI Chat powered by Groq',
+                  'Note graph visualization',
+                ],
+              },
+              {
+                title: 'Data & Privacy',
+                icon: ICONS.shield,
+                color: '#22c55e',
+                items: [
+                  'Auto note history & restore',
+                  'Export .md · Import/export JSON',
+                  'AES-256 note encryption',
+                  'Local-first — no server, no account',
+                  'Open source (MIT)',
+                ],
+              },
             ].map((cat) => (
               <div key={cat.title} className="sp-settings-section">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 7, background: cat.color + '20', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cat.icon}</div>
-                  <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--text)', letterSpacing: '-0.2px' }}>{cat.title}</span>
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 7,
+                      background: cat.color + '20',
+                      fontSize: 13,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {cat.icon}
+                  </div>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      fontSize: 12,
+                      color: 'var(--text)',
+                      letterSpacing: '-0.2px',
+                    }}
+                  >
+                    {cat.title}
+                  </span>
                 </div>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                   {cat.items.map((item) => (
-                    <li key={item} style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.7, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                    <li
+                      key={item}
+                      style={{
+                        fontSize: 11.5,
+                        color: 'var(--text-muted)',
+                        lineHeight: 1.7,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 6,
+                      }}
+                    >
                       <span style={{ color: cat.color, marginTop: 1, flexShrink: 0 }}>•</span>
                       {item}
                     </li>
@@ -3302,15 +4481,44 @@ ${parseMarkdown(content)}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
               <a
                 href="https://github.com/mikepchelner-spec/TabNotes"
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-muted)'; }}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 7,
+                  padding: '10px',
+                  borderRadius: 'var(--r-md)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-subtle)',
+                  color: 'var(--text-muted)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-muted)';
+                }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+                </svg>
                 View on GitHub
               </a>
-              <div style={{ textAlign: 'center', fontSize: 10.5, color: 'var(--text-subtle)', paddingBottom: 4 }}>MIT license · No account · No tracking</div>
+              <div
+                style={{
+                  textAlign: 'center',
+                  fontSize: 10.5,
+                  color: 'var(--text-subtle)',
+                  paddingBottom: 4,
+                }}
+              >
+                MIT license · No account · No tracking
+              </div>
             </div>
           </div>
         )}
@@ -3327,9 +4535,15 @@ ${parseMarkdown(content)}
                 className="tn-palette-input"
                 placeholder="Search notes or type a command…"
                 value={cmdQuery}
-                onChange={(e) => { setCmdQuery(e.target.value); setCmdSelIdx(0); }}
+                onChange={(e) => {
+                  setCmdQuery(e.target.value);
+                  setCmdSelIdx(0);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') { setShowCmdPalette(false); return; }
+                  if (e.key === 'Escape') {
+                    setShowCmdPalette(false);
+                    return;
+                  }
                   if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     setCmdSelIdx((i) => Math.min(i + 1, paletteItemsRef.current.length - 1));
@@ -3338,13 +4552,18 @@ ${parseMarkdown(content)}
                     setCmdSelIdx((i) => Math.max(i - 1, 0));
                   } else if (e.key === 'Enter') {
                     const item = paletteItemsRef.current[cmdSelIdx];
-                    if (item) { item.run(); setShowCmdPalette(false); }
+                    if (item) {
+                      item.run();
+                      setShowCmdPalette(false);
+                    }
                   }
                 }}
                 autoComplete="off"
                 spellCheck={false}
               />
-              <kbd className="tn-palette-esc" onClick={() => setShowCmdPalette(false)}>Esc</kbd>
+              <kbd className="tn-palette-esc" onClick={() => setShowCmdPalette(false)}>
+                Esc
+              </kbd>
             </div>
 
             <div className="tn-palette-divider" />
@@ -3358,26 +4577,32 @@ ${parseMarkdown(content)}
                   key={idx}
                   className={`tn-palette-item${idx === cmdSelIdx ? ' selected' : ''}`}
                   onMouseEnter={() => setCmdSelIdx(idx)}
-                  onMouseDown={(e) => { e.preventDefault(); item.run(); setShowCmdPalette(false); }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    item.run();
+                    setShowCmdPalette(false);
+                  }}
                 >
                   <span className="tn-palette-item-icon">{item.icon}</span>
                   <span className="tn-palette-item-body">
                     <span className="tn-palette-item-label">{item.label}</span>
-                    {item.sublabel && (
-                      <span className="tn-palette-item-sub">{item.sublabel}</span>
-                    )}
+                    {item.sublabel && <span className="tn-palette-item-sub">{item.sublabel}</span>}
                   </span>
-                  {item.shortcut && (
-                    <kbd className="tn-palette-shortcut">{item.shortcut}</kbd>
-                  )}
+                  {item.shortcut && <kbd className="tn-palette-shortcut">{item.shortcut}</kbd>}
                 </button>
               ))}
             </div>
 
             <div className="tn-palette-footer">
-              <span><kbd>↑↓</kbd> navigate</span>
-              <span><kbd>↵</kbd> select</span>
-              <span><kbd>Esc</kbd> close</span>
+              <span>
+                <kbd>↑↓</kbd> navigate
+              </span>
+              <span>
+                <kbd>↵</kbd> select
+              </span>
+              <span>
+                <kbd>Esc</kbd> close
+              </span>
             </div>
           </div>
         </div>
@@ -3388,11 +4613,13 @@ ${parseMarkdown(content)}
         <div className="tn-enc-overlay">
           <div className="tn-enc-dialog">
             <div className="tn-enc-title">
-              {showEncPrompt === 'lock' ? '🔒 Encrypt note' : '🔑 Decrypt note'}
+              {showEncPrompt === 'lock'
+                ? `${ICONS.lock} Encrypt note`
+                : `${ICONS.key} Decrypt note`}
             </div>
             <p className="tn-enc-desc">
               {showEncPrompt === 'lock'
-                ? 'Enter a password to encrypt this note with AES-256. You\'ll need the same password to read it again.'
+                ? "Enter a password to encrypt this note with AES-256. You'll need the same password to read it again."
                 : 'Enter your password to decrypt and restore this note.'}
             </p>
             <input
@@ -3401,15 +4628,32 @@ ${parseMarkdown(content)}
               placeholder="Password…"
               value={encPassword}
               autoFocus
-              onChange={(e) => { setEncPassword(e.target.value); setEncError(''); }}
+              onChange={(e) => {
+                setEncPassword(e.target.value);
+                setEncError('');
+              }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') showEncPrompt === 'lock' ? handleLockNote() : handleUnlockNote();
-                if (e.key === 'Escape') { setShowEncPrompt(null); setEncPassword(''); setEncError(''); }
+                if (e.key === 'Enter')
+                  showEncPrompt === 'lock' ? handleLockNote() : handleUnlockNote();
+                if (e.key === 'Escape') {
+                  setShowEncPrompt(null);
+                  setEncPassword('');
+                  setEncError('');
+                }
               }}
             />
             {encError && <p className="tn-enc-error">{encError}</p>}
             <div className="tn-enc-actions">
-              <button className="tn-enc-cancel" onClick={() => { setShowEncPrompt(null); setEncPassword(''); setEncError(''); }}>Cancel</button>
+              <button
+                className="tn-enc-cancel"
+                onClick={() => {
+                  setShowEncPrompt(null);
+                  setEncPassword('');
+                  setEncError('');
+                }}
+              >
+                Cancel
+              </button>
               <button
                 className="tn-enc-confirm"
                 onClick={showEncPrompt === 'lock' ? handleLockNote : handleUnlockNote}
@@ -3424,28 +4668,55 @@ ${parseMarkdown(content)}
 
       {/* ── Bottom nav ── */}
       <div className="sp-bottom-nav">
-        <button className={`sp-nav-btn${view === 'note' ? ' active' : ''}`} onClick={() => setView('note')}>
-          <span className="sp-nav-icon">✎</span>
+        <button
+          className={`sp-nav-btn${view === 'note' ? ' active' : ''}`}
+          onClick={() => setView('note')}
+        >
+          <span className="sp-nav-icon">{ICONS.note}</span>
           <span className="sp-nav-label">Note</span>
         </button>
-        <button className={`sp-nav-btn${view === 'all' ? ' active' : ''}`} onClick={() => setView('all')}>
-          <span className="sp-nav-icon">☰</span>
+        <button
+          className={`sp-nav-btn${view === 'all' ? ' active' : ''}`}
+          onClick={() => setView('all')}
+        >
+          <span className="sp-nav-icon">{ICONS.list}</span>
           <span className="sp-nav-label">All Notes</span>
           {allNotes.length > 0 && (
-            <span style={{ position: 'absolute', top: 7, right: 'calc(50% - 18px)', background: 'var(--accent)', color: '#fff', fontSize: 8, fontWeight: 700, padding: '1px 4px', borderRadius: 99, minWidth: 14, textAlign: 'center', lineHeight: '14px' }}>
+            <span
+              style={{
+                position: 'absolute',
+                top: 7,
+                right: 'calc(50% - 18px)',
+                background: 'var(--accent)',
+                color: '#fff',
+                fontSize: 8,
+                fontWeight: 700,
+                padding: '1px 4px',
+                borderRadius: 99,
+                minWidth: 14,
+                textAlign: 'center',
+                lineHeight: '14px',
+              }}
+            >
               {allNotes.length}
             </span>
           )}
         </button>
         {features.chatView && (
-          <button className={`sp-nav-btn${view === 'chat' ? ' active' : ''}`} onClick={() => setView('chat')}>
-            <span className="sp-nav-icon">💬</span>
+          <button
+            className={`sp-nav-btn${view === 'chat' ? ' active' : ''}`}
+            onClick={() => setView('chat')}
+          >
+            <span className="sp-nav-icon">{ICONS.chat}</span>
             <span className="sp-nav-label">Ask</span>
             {groqKey && <span className="sp-nav-ai-dot" />}
           </button>
         )}
-        <button className={`sp-nav-btn${view === 'settings' ? ' active' : ''}`} onClick={() => setView('settings')}>
-          <span className="sp-nav-icon">⚙</span>
+        <button
+          className={`sp-nav-btn${view === 'settings' ? ' active' : ''}`}
+          onClick={() => setView('settings')}
+        >
+          <span className="sp-nav-icon">{ICONS.settings}</span>
           <span className="sp-nav-label">Settings</span>
         </button>
       </div>
