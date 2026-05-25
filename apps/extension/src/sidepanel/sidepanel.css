@@ -3643,7 +3643,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 3px 0;
-  gap: 0;
+  gap: 2px;
 }
 
 .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-pill {
@@ -3663,9 +3663,37 @@ body {
   height: 24px;
 }
 
+.sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-name {
+  display: block !important;
+  font-size: 8px !important;
+  font-weight: 600;
+  text-align: center;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 28px;
+  color: #a1a1aa;
+  margin-top: 1px;
+}
+
+[data-theme='light'] .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-name {
+  color: #706f8a;
+}
+
+.sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-nav-row.active .sp-tree-folder-name,
+.sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-row.active .sp-tree-folder-name {
+  color: #ffffff;
+}
+
+[data-theme='light'] .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-nav-row.active .sp-tree-folder-name,
+[data-theme='light'] .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-row.active .sp-tree-folder-name {
+  color: #1f1e2e;
+}
+
 /* Hide extra metadata when collapsed */
 .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-title,
-.sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-name,
 .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-count,
 .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-menu,
 .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-chevron,
