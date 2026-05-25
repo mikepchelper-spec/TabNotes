@@ -4059,3 +4059,174 @@ body {
 .sp-notes-tree.dragging-active .sp-tree-folder-row * {
   pointer-events: none;
 }
+
+/* ─── Google Keep-style Checklist Editor ────────────────────────── */
+.sp-checklist-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 0;
+}
+
+.sp-checklist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  transition: background 0.1s ease;
+}
+
+.sp-checklist-row:hover {
+  background: var(--bg-card);
+}
+
+.sp-checklist-drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  opacity: 0.2;
+  user-select: none;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.sp-checklist-row:hover .sp-checklist-drag-handle {
+  opacity: 0.7;
+}
+
+.sp-checklist-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.sp-checklist-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: var(--font-size, 13px);
+  font-family: inherit;
+  padding: 2px 0;
+}
+
+.sp-checklist-input.checked {
+  text-decoration: line-through;
+  color: var(--text-subtle);
+  opacity: 0.6;
+}
+
+.sp-checklist-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+}
+
+.sp-checklist-row:hover .sp-checklist-delete {
+  opacity: 0.6;
+}
+
+.sp-checklist-delete:hover {
+  opacity: 1 !important;
+  color: #ef4444;
+}
+
+.sp-checklist-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  color: var(--text-muted);
+}
+
+.sp-checklist-add-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  margin-left: 22px; /* aligns with checkbox, past drag handle */
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.sp-checklist-add-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: var(--font-size, 13px);
+  font-family: inherit;
+  padding: 2px 0;
+}
+
+.sp-checklist-add-input::placeholder {
+  color: var(--text-subtle);
+  opacity: 0.7;
+}
+
+.sp-checklist-completed-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.sp-checklist-completed-header {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sp-checklist-completed-header:hover {
+  color: var(--text);
+}
+
+.sp-checklist-completed-arrow {
+  display: inline-block;
+  font-size: 8px;
+  transition: transform 0.15s ease;
+}
+
+.sp-checklist-completed-arrow.open {
+  transform: rotate(90deg);
+}
+
+.sp-checklist-completed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
