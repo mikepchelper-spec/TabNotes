@@ -3515,7 +3515,7 @@ body {
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   padding: 16px 0;
   flex-shrink: 0;
-  width: 72px; /* Collapsed width matches mockup */
+  width: 56px; /* Collapsed width matches mockup */
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
@@ -3648,7 +3648,9 @@ body {
 
 .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-pill {
   left: 0;
-  height: 24px;
+  top: 10px !important;
+  height: 24px !important;
+  transform: none !important;
 }
 
 .sp-notes-tree:not(:hover):not(:focus-within):not(.dragging-active) .sp-tree-folder-icon {
@@ -3670,7 +3672,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 64px;
+  max-width: 48px;
   color: #a1a1aa;
 }
 
