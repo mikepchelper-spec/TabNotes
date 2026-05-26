@@ -56,6 +56,7 @@ TabNotes is a Chrome extension (Manifest V3) that keeps contextual notes right w
 | **WYSIWYG Rich Text** | True rich text editing — bold, italic, underline, strikethrough, inline code, and highlight render as you type |
 | **Keyboard Shortcuts** | `Ctrl+B` bold · `Ctrl+I` italic · `Ctrl+U` underline |
 | **Markdown Preview** | Toggle between rich edit mode and a rendered markdown view (`↓md`) |
+| **Checklist Mode** | Google Keep-style interactive checklists with drag-and-drop reordering, keyboard item flow, and collapsible completed tasks section |
 | **Typewriter Mode** | Keeps the current line centered on screen for distraction-free writing |
 | **Text Alignment** | Left, center, right, or justify any paragraph |
 | **Font Size** | `A–` / `A+` controls for comfortable reading |
@@ -65,7 +66,7 @@ TabNotes is a Chrome extension (Manifest V3) that keeps contextual notes right w
 
 | Feature | Description |
 |---|---|
-| **4 Scopes** | **URL** (exact page) · **Domain** (whole site) · **Workspace** (your project) · **Global** (always available) |
+| **4 Scopes** | **URL** (exact page) · **Domain** (whole site) · **Proyecto** (active project) · **Global** (always available) |
 | **Multiple Notes per Scope** | Create as many notes as you need — navigate them with pills |
 | **Workspaces** | Group notes into named projects and switch context instantly |
 | **Folders** | Further organize notes within any scope |
@@ -235,6 +236,13 @@ Este registro documenta los cambios arquitectónicos y de interfaz completados r
 - Implementado soporte nativo de arrastrar y soltar utilizando la API HTML5 (`draggable`, `onDragStart`, `onDragOver`, `onDragLeave`, `onDrop`) en `SidePanelApp.tsx`.
 - **Comportamiento:** Arrastrar una nota sobre una carpeta la asocia a esa ruta. Arrastrar una nota al fondo general del explorador (`sp-tree-list`) remueve la carpeta, dejándola como nota suelta.
 - **Retroalimentación Visual:** Clases de estilo `.drag-over` añaden de inmediato bordes discontinuos violetas y fondos translúcidos al interactuar.
+
+### 7. Renombrado del Ámbito a "Proyecto"
+- Se renombró el tercer ámbito de notas ("Workspace") a **"Proyecto"** en SidePanel, Popup y Opciones. Esto resuelve la confusión de los usuarios entre el ámbito de notas del proyecto actual y el selector del espacio de trabajo activo (dropdown superior). Se mantuvo la clave interna de base de datos `'workspace'` para plena compatibilidad.
+
+### 8. Casillas de Verificación Estilo Google Keep
+- Se implementó un editor visual e interactivo de listas de tareas con casillas de verificación. Al detectar formato de lista markdown (`- [ ]`/`- [x]`) o al pulsar el botón `☑`/`☐`, el editor carga la lista en modo interactivo Keep.
+- Permite arrastrar elementos para reordenarlos con el tirador `⠿`, tachar y mover tareas completadas al bloque colapsable inferior, y utilizar un flujo de teclado rápido (Enter para agregar tarea, Backspace para borrar y retornar foco).
 
 ---
 
