@@ -122,7 +122,6 @@ export default function SidePanelApp() {
   const setCurrentUrl = useSidePanelStore((s) => s.setCurrentUrl);
   const setCurrentDomain = useSidePanelStore((s) => s.setCurrentDomain);
 
-  const allNotes = useSidePanelStore((s) => s.allNotes);
   const setContextNotes = useSidePanelStore((s) => s.setContextNotes);
   const workspaces = useSidePanelStore((s) => s.workspaces);
   const activeWorkspaceId = useSidePanelStore((s) => s.activeWorkspaceId);
@@ -1239,7 +1238,7 @@ export default function SidePanelApp() {
 
 
       {/* ── Bottom nav ── */}
-      <BottomNav allNotesCount={allNotes.length} groqKey={groqKey} />
+      <BottomNav groqKey={groqKey} />
     </div>
   );
 }

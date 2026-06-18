@@ -457,7 +457,7 @@ test.describe('TabNotes side panel — editor (real tab context)', () => {
 
     await panel.locator('.sp-note-meta-actions').hover();
     await panel.locator('.sp-note-meta-action-panel .sp-meta-toggle', {
-      hasText: /Folder|Carpeta/,
+      hasText: /Move note|Mover nota|Folder|Carpeta/,
     }).click();
     await expect(panel.locator('.sp-move-picker')).toBeVisible();
 
@@ -634,7 +634,7 @@ test.describe('TabNotes side panel — editor (real tab context)', () => {
     await expect(actionPanel).toBeVisible();
 
     for (const label of [
-      /Folder|Carpeta/,
+      /Move note|Mover nota|Folder|Carpeta/,
       /Date|Fecha/,
       /Pin|Fijar/,
       /Color/,
@@ -652,7 +652,9 @@ test.describe('TabNotes side panel — editor (real tab context)', () => {
       await expect(actionPanel.getByRole('button', { name: label })).toBeVisible();
     }
 
-    await expect(actionPanel.getByRole('button', { name: /Folder|Carpeta/ })).toBeDisabled();
+    await expect(
+      actionPanel.getByRole('button', { name: /Move note|Mover nota|Folder|Carpeta/ })
+    ).toBeDisabled();
     await expect(actionPanel.getByRole('button', { name: /Export|Exportar/ })).toBeDisabled();
     await expect(actionPanel.getByRole('button', { name: /Checklist|Lista/ })).toBeEnabled();
   });

@@ -9,10 +9,8 @@ import { AppIcon } from './AppIcon';
  * during the migration). Extracted verbatim (Task 3.2) — no behavior change.
  */
 export function BottomNav({
-  allNotesCount,
   groqKey,
 }: {
-  allNotesCount: number;
   groqKey: string;
 }) {
   const { t } = useTranslation();
@@ -20,6 +18,12 @@ export function BottomNav({
   const setView = useSidePanelStore((s) => s.setView);
   const setSettingsTarget = useSidePanelStore((s) => s.setSettingsTarget);
   const chatEnabled = useSidePanelStore((s) => s.features.chatView);
+  const allNotes = useSidePanelStore((s) => s.allNotes);
+  const activeWorkspaceId = useSidePanelStore((s) => s.activeWorkspaceId);
+  const workspaceNotesCount = React.useMemo(
+    () => allNotes.filter((note) => (note.workspaceId ?? null) === activeWorkspaceId).length,
+    [allNotes, activeWorkspaceId]
+  );
 
   return (
     <div className="sp-bottom-nav">
@@ -36,8 +40,9 @@ export function BottomNav({
       >
         <span className="sp-nav-icon"><AppIcon name="list" size={18} /></span>
         <span className="sp-nav-label">{t('nav.allNotes')}</span>
-        {allNotesCount > 0 && (
+        {workspaceNotesCount > 0 && (
           <span
+            className="sp-nav-badge"
             style={{
               position: 'absolute',
               top: 7,
@@ -53,7 +58,7 @@ export function BottomNav({
               lineHeight: '14px',
             }}
           >
-            {allNotesCount}
+            {workspaceNotesCount}
           </span>
         )}
       </button>
