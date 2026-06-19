@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TabNotes - Contextual notes for Chrome</title>
+    <meta
+      name="description"
+      content="TabNotes is a local-first Chrome extension for contextual notes by URL, domain, workspace, or global scope."
+    />
+    <meta name="robots" content="index,follow" />
+    <link rel="icon" href="/assets/icon512.png" />
+    <link rel="stylesheet" href="/assets/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="TabNotes home">
+        <img src="/assets/icon512.png" alt="" width="36" height="36" />
+        <span>TabNotes</span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="https://github.com/mikepchelper-spec/TabNotes" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <h1>Notes that know where you are.</h1>
+          <p>
+            TabNotes is a local-first Chrome extension for writing notes tied to the page, domain,
+            workspace, or browser context you are working in.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="/privacy/">Privacy policy</a>
+            <a class="button secondary" href="/terms/">Terms of service</a>
+          </div>
+        </div>
+
+        <div class="product-panel" aria-label="TabNotes preview">
+          <div class="panel-top">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <strong>research.notes</strong>
+          </div>
+          <div class="note-block">
+            <span class="scope">URL note</span>
+            <h2>Chrome Web Store checklist</h2>
+            <p>OAuth configured, Drive backup optional, privacy policy public, package ready.</p>
+          </div>
+          <div class="note-row">
+            <span>Workspace</span>
+            <strong>Launch</strong>
+          </div>
+          <div class="note-row">
+            <span>Storage</span>
+            <strong>Local-first</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="strip" aria-label="Core promises">
+        <article>
+          <h2>Local by default</h2>
+          <p>Your notes are stored on your device using Chrome extension storage.</p>
+        </article>
+        <article>
+          <h2>No tracking</h2>
+          <p>No analytics, advertising SDKs, telemetry, or developer-operated note servers.</p>
+        </article>
+        <article>
+          <h2>Optional Drive backup</h2>
+          <p>When enabled, backups go directly to your private Google Drive app data folder.</p>
+        </article>
+      </section>
+
+      <section class="legal-summary">
+        <h2>For OAuth review</h2>
+        <p>
+          TabNotes requests Google access only for the optional Google Drive backup feature. It uses
+          the limited <code>drive.appdata</code> scope so backup files stay in the user's private app
+          data folder and are not visible to the developer.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>© 2026 TabNotes</span>
+      <span>Open source Chrome extension</span>
+    </footer>
+  </body>
+</html>

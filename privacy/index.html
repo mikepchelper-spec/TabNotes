@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy - TabNotes</title>
+    <meta
+      name="description"
+      content="TabNotes privacy policy. TabNotes collects no personal data and stores notes locally by default."
+    />
+    <meta name="robots" content="index,follow" />
+    <link rel="icon" href="/assets/icon512.png" />
+    <link rel="stylesheet" href="/assets/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="TabNotes home">
+        <img src="/assets/icon512.png" alt="" width="36" height="36" />
+        <span>TabNotes</span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a aria-current="page" href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="https://github.com/mikepchelper-spec/TabNotes" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <main class="document">
+      <p class="updated">Effective date: June 19, 2026</p>
+      <h1>Privacy Policy</h1>
+      <p class="lead">
+        TabNotes is a local-first Chrome extension. We collect no personal data. Your notes stay on
+        your device unless you explicitly enable optional Google Drive backup.
+      </p>
+
+      <section>
+        <h2>Data we collect</h2>
+        <p>
+          TabNotes does not collect, store, sell, share, or transmit personal information, browsing
+          data, note content, usage analytics, advertising identifiers, telemetry, or crash reports
+          to the TabNotes developer.
+        </p>
+      </section>
+
+      <section>
+        <h2>Local storage</h2>
+        <p>
+          Notes, workspaces, tags, settings, and related application data are stored locally in
+          Chrome extension storage on your own device. This data is not sent to a TabNotes server.
+        </p>
+      </section>
+
+      <section>
+        <h2>Optional Google Drive backup</h2>
+        <p>
+          If you choose to connect Google Drive, TabNotes uses Chrome's identity API and the Google
+          Drive <code>drive.appdata</code> scope to create or update a backup file in your private
+          Google Drive app data folder.
+        </p>
+        <p>
+          The backup is transferred directly between the extension and Google Drive. The TabNotes
+          developer cannot access your Google account, your notes, or your backup file.
+        </p>
+      </section>
+
+      <section>
+        <h2>Chrome permissions</h2>
+        <dl class="permission-list">
+          <dt>storage</dt>
+          <dd>Saves your notes and settings locally on your device.</dd>
+          <dt>tabs and activeTab</dt>
+          <dd>Reads the current tab URL so notes can be linked to the right page or domain.</dd>
+          <dt>sidePanel</dt>
+          <dd>Displays the TabNotes side panel beside browser content.</dd>
+          <dt>identity</dt>
+          <dd>Allows optional Google sign-in for Google Drive backup.</dd>
+          <dt>alarms and notifications</dt>
+          <dd>Schedules reminders and displays user-requested reminder notifications.</dd>
+          <dt>https://www.googleapis.com/*</dt>
+          <dd>Calls Google Drive APIs only when the user enables Drive backup.</dd>
+        </dl>
+      </section>
+
+      <section>
+        <h2>Export and import</h2>
+        <p>
+          Export creates a JSON backup file on your device. Import reads a local backup file you
+          choose. These actions do not use a TabNotes server.
+        </p>
+      </section>
+
+      <section>
+        <h2>Third-party services</h2>
+        <p>
+          TabNotes does not include third-party analytics, advertising, telemetry, or tracking
+          services. Google Drive is used only if you opt in to Drive backup.
+        </p>
+      </section>
+
+      <section>
+        <h2>Children's privacy</h2>
+        <p>TabNotes does not knowingly collect information from children or from any other users.</p>
+      </section>
+
+      <section>
+        <h2>Changes</h2>
+        <p>
+          If this policy changes, the updated policy will be published on this page and reflected in
+          the extension's release notes when appropriate.
+        </p>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>
+          For privacy questions, open an issue at
+          <a href="https://github.com/mikepchelper-spec/TabNotes/issues" rel="noopener noreferrer">
+            github.com/mikepchelper-spec/TabNotes/issues</a
+          >.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>© 2026 TabNotes</span>
+      <a href="/">Home</a>
+    </footer>
+  </body>
+</html>
