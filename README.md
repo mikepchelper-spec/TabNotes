@@ -12,4 +12,4 @@ Search Console verification file:
 
 - https://tabnotes.atlaspcsupport.com/google8ef5d404fc100dff.html
 
-Deploy the folder contents directly to Cloudflare Pages.
+Deploy the folder contents directly to the `gh-pages` branch used by GitHub Pages.

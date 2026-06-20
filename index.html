@@ -6,9 +6,15 @@
     <title>TabNotes - Contextual notes for Chrome</title>
     <meta
       name="description"
-      content="TabNotes is a local-first Chrome extension for contextual notes by URL, domain, workspace, or global scope."
+      content="TabNotes is a published Chrome extension for local-first contextual notes, workspaces, reminders, and optional Google Drive backup."
     />
     <meta name="robots" content="index,follow" />
+    <meta property="og:title" content="TabNotes - Notes that know where you are" />
+    <meta
+      property="og:description"
+      content="Capture notes by URL, domain, workspace, or global context. Local-first, private by design, with optional Google Drive backup."
+    />
+    <meta property="og:image" content="/assets/screenshots/editor-url-note.png" />
     <link rel="icon" href="/assets/icon512.png" />
     <link rel="stylesheet" href="/assets/site.css" />
   </head>
@@ -19,77 +25,262 @@
         <span>TabNotes</span>
       </a>
       <nav class="nav" aria-label="Main navigation">
-        <a href="/privacy/">Privacy</a>
-        <a href="/terms/">Terms</a>
+        <a href="#features" data-i18n="nav.features">Features</a>
+        <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
+        <a href="/terms/" data-i18n="nav.terms">Terms</a>
         <a href="https://github.com/mikepchelper-spec/TabNotes" rel="noopener noreferrer">GitHub</a>
       </nav>
+      <button class="language-toggle" type="button" data-language-toggle aria-label="Cambiar idioma">
+        ES
+      </button>
     </header>
 
     <main>
       <section class="hero">
-        <div class="hero-copy">
-          <h1>Notes that know where you are.</h1>
-          <p>
-            TabNotes is a local-first Chrome extension for writing notes tied to the page, domain,
-            workspace, or browser context you are working in.
+        <img
+          class="hero-media"
+          src="/assets/screenshots/editor-url-note.png"
+          alt="TabNotes side panel showing a contextual note"
+        />
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <p class="eyebrow" data-i18n="hero.eyebrow">Published on Chrome Web Store</p>
+          <h1 data-i18n="hero.title">TabNotes</h1>
+          <p class="hero-subtitle" data-i18n="hero.subtitle">
+            Contextual notes for the exact page, domain, workspace, or browser context you are
+            working in.
           </p>
-          <div class="actions">
-            <a class="button primary" href="/privacy/">Privacy policy</a>
-            <a class="button secondary" href="/terms/">Terms of service</a>
-          </div>
-        </div>
-
-        <div class="product-panel" aria-label="TabNotes preview">
-          <div class="panel-top">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <strong>research.notes</strong>
-          </div>
-          <div class="note-block">
-            <span class="scope">URL note</span>
-            <h2>Chrome Web Store checklist</h2>
-            <p>OAuth configured, Drive backup optional, privacy policy public, package ready.</p>
-          </div>
-          <div class="note-row">
-            <span>Workspace</span>
-            <strong>Launch</strong>
-          </div>
-          <div class="note-row">
-            <span>Storage</span>
-            <strong>Local-first</strong>
+          <div class="hero-actions">
+            <a
+              class="button primary"
+              href="https://chromewebstore.google.com/detail/tabnotes/pniapenkdphjolncppcichbahomfiffj"
+              rel="noopener noreferrer"
+              data-i18n="hero.install"
+            >
+              Install on Chrome
+            </a>
+            <a
+              class="button secondary"
+              href="https://github.com/mikepchelper-spec/TabNotes"
+              rel="noopener noreferrer"
+              data-i18n="hero.source"
+            >
+              View source
+            </a>
           </div>
         </div>
       </section>
 
-      <section class="strip" aria-label="Core promises">
+      <section class="status-strip" aria-label="Release facts">
         <article>
-          <h2>Local by default</h2>
-          <p>Your notes are stored on your device using Chrome extension storage.</p>
+          <span>2.10.2</span>
+          <p data-i18n="facts.version">Current public version</p>
         </article>
         <article>
-          <h2>No tracking</h2>
-          <p>No analytics, advertising SDKs, telemetry, or developer-operated note servers.</p>
+          <span>MV3</span>
+          <p data-i18n="facts.mv3">Store-safe Chrome extension</p>
         </article>
         <article>
-          <h2>Optional Drive backup</h2>
-          <p>When enabled, backups go directly to your private Google Drive app data folder.</p>
+          <span>Local-first</span>
+          <p data-i18n="facts.local">Notes stay in your browser by default</p>
+        </article>
+        <article>
+          <span>Drive appData</span>
+          <p data-i18n="facts.drive">Optional private Google Drive backup</p>
         </article>
       </section>
 
-      <section class="legal-summary">
-        <h2>For OAuth review</h2>
-        <p>
-          TabNotes requests Google access only for the optional Google Drive backup feature. It uses
-          the limited <code>drive.appdata</code> scope so backup files stay in the user's private app
-          data folder and are not visible to the developer.
-        </p>
+      <section id="features" class="section feature-grid">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="features.eyebrow">Built around your browsing context</p>
+          <h2 data-i18n="features.title">The note is already filed before you start writing.</h2>
+        </div>
+        <article>
+          <h3 data-i18n="features.url.title">URL notes</h3>
+          <p data-i18n="features.url.body">
+            Keep page-specific research, forms, bugs, ideas, and references attached to the exact
+            URL.
+          </p>
+        </article>
+        <article>
+          <h3 data-i18n="features.domain.title">Domain notes</h3>
+          <p data-i18n="features.domain.body">
+            Maintain shared notes for one website, dashboard, documentation portal, or client app.
+          </p>
+        </article>
+        <article>
+          <h3 data-i18n="features.workspace.title">Workspaces</h3>
+          <p data-i18n="features.workspace.body">
+            Organize notes by project, client, workflow, or support case without losing context.
+          </p>
+        </article>
+        <article>
+          <h3 data-i18n="features.global.title">Global notes</h3>
+          <p data-i18n="features.global.body">
+            Use a clean scratchpad that is always available, regardless of the current tab.
+          </p>
+        </article>
+      </section>
+
+      <section class="section screenshot-showcase" aria-label="TabNotes screenshots">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="screens.eyebrow">Product views</p>
+          <h2 data-i18n="screens.title">A focused side panel for writing, finding, and restoring notes.</h2>
+        </div>
+        <div class="screenshot-grid">
+          <figure class="feature-shot wide">
+            <img src="/assets/screenshots/search-all-notes.png" alt="Search and all notes view" />
+            <figcaption data-i18n="screens.search">Search across every note, title, tag, and scope.</figcaption>
+          </figure>
+          <figure class="feature-shot">
+            <img src="/assets/screenshots/drive-backup.png" alt="Google Drive backup settings" />
+            <figcaption data-i18n="screens.drive">Optional Google Drive backup uses the limited app data folder.</figcaption>
+          </figure>
+          <figure class="feature-shot">
+            <img src="/assets/screenshots/reminders.png" alt="TabNotes reminders" />
+            <figcaption data-i18n="screens.reminders">Reminders notify you with browser alerts and sound.</figcaption>
+          </figure>
+          <figure class="feature-shot wide">
+            <img src="/assets/screenshots/workspaces-light.png" alt="Workspaces in light mode" />
+            <figcaption data-i18n="screens.workspaces">Workspaces keep client, project, and task notes separated.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="privacy" class="section trust-section">
+        <div>
+          <p class="eyebrow" data-i18n="privacy.eyebrow">Private by design</p>
+          <h2 data-i18n="privacy.title">No TabNotes account. No TabNotes server. No tracking.</h2>
+        </div>
+        <div class="trust-copy">
+          <p data-i18n="privacy.body">
+            Notes are stored locally in Chrome by default. Export and restore use JSON files you
+            control. If you enable Drive backup, the extension talks directly to Google Drive using
+            the limited drive.appdata scope.
+          </p>
+          <div class="trust-actions">
+            <a class="button secondary" href="/privacy/" data-i18n="privacy.policy">Read privacy policy</a>
+            <a class="button secondary" href="/terms/" data-i18n="privacy.terms">Read terms</a>
+          </div>
+        </div>
       </section>
     </main>
 
     <footer class="site-footer">
-      <span>© 2026 TabNotes</span>
-      <span>Open source Chrome extension</span>
+      <span data-i18n="footer.release">TabNotes v2.10.2 - Published for Chrome</span>
+      <span data-i18n="footer.license">MIT licensed, local-first note taking</span>
     </footer>
+
+    <script>
+      const messages = {
+        en: {
+          'nav.features': 'Features',
+          'nav.privacy': 'Privacy',
+          'nav.terms': 'Terms',
+          'hero.eyebrow': 'Published on Chrome Web Store',
+          'hero.title': 'TabNotes',
+          'hero.subtitle':
+            'Contextual notes for the exact page, domain, workspace, or browser context you are working in.',
+          'hero.install': 'Install on Chrome',
+          'hero.source': 'View source',
+          'facts.version': 'Current public version',
+          'facts.mv3': 'Store-safe Chrome extension',
+          'facts.local': 'Notes stay in your browser by default',
+          'facts.drive': 'Optional private Google Drive backup',
+          'features.eyebrow': 'Built around your browsing context',
+          'features.title': 'The note is already filed before you start writing.',
+          'features.url.title': 'URL notes',
+          'features.url.body':
+            'Keep page-specific research, forms, bugs, ideas, and references attached to the exact URL.',
+          'features.domain.title': 'Domain notes',
+          'features.domain.body':
+            'Maintain shared notes for one website, dashboard, documentation portal, or client app.',
+          'features.workspace.title': 'Workspaces',
+          'features.workspace.body':
+            'Organize notes by project, client, workflow, or support case without losing context.',
+          'features.global.title': 'Global notes',
+          'features.global.body':
+            'Use a clean scratchpad that is always available, regardless of the current tab.',
+          'screens.eyebrow': 'Product views',
+          'screens.title': 'A focused side panel for writing, finding, and restoring notes.',
+          'screens.search': 'Search across every note, title, tag, and scope.',
+          'screens.drive': 'Optional Google Drive backup uses the limited app data folder.',
+          'screens.reminders': 'Reminders notify you with browser alerts and sound.',
+          'screens.workspaces': 'Workspaces keep client, project, and task notes separated.',
+          'privacy.eyebrow': 'Private by design',
+          'privacy.title': 'No TabNotes account. No TabNotes server. No tracking.',
+          'privacy.body':
+            'Notes are stored locally in Chrome by default. Export and restore use JSON files you control. If you enable Drive backup, the extension talks directly to Google Drive using the limited drive.appdata scope.',
+          'privacy.policy': 'Read privacy policy',
+          'privacy.terms': 'Read terms',
+          'footer.release': 'TabNotes v2.10.2 - Published for Chrome',
+          'footer.license': 'MIT licensed, local-first note taking',
+        },
+        es: {
+          'nav.features': 'Funciones',
+          'nav.privacy': 'Privacidad',
+          'nav.terms': 'Terminos',
+          'hero.eyebrow': 'Publicado en Chrome Web Store',
+          'hero.title': 'TabNotes',
+          'hero.subtitle':
+            'Notas contextuales para la pagina, dominio, espacio de trabajo o contexto general del navegador.',
+          'hero.install': 'Instalar en Chrome',
+          'hero.source': 'Ver codigo',
+          'facts.version': 'Version publica actual',
+          'facts.mv3': 'Extension Chrome lista para la tienda',
+          'facts.local': 'Tus notas quedan en el navegador por defecto',
+          'facts.drive': 'Backup privado opcional en Google Drive',
+          'features.eyebrow': 'Pensado para el contexto donde trabajas',
+          'features.title': 'La nota ya esta organizada antes de empezar a escribir.',
+          'features.url.title': 'Notas por URL',
+          'features.url.body':
+            'Guarda investigacion, formularios, bugs, ideas y referencias vinculadas a una pagina exacta.',
+          'features.domain.title': 'Notas por dominio',
+          'features.domain.body':
+            'Mantén notas compartidas para un sitio, dashboard, documentacion o aplicacion de cliente.',
+          'features.workspace.title': 'Espacios de trabajo',
+          'features.workspace.body':
+            'Organiza notas por proyecto, cliente, flujo de trabajo o caso de soporte sin perder contexto.',
+          'features.global.title': 'Notas globales',
+          'features.global.body':
+            'Usa un bloc rapido disponible siempre, sin importar la pestana actual.',
+          'screens.eyebrow': 'Vistas del producto',
+          'screens.title': 'Un panel lateral enfocado para escribir, buscar y restaurar notas.',
+          'screens.search': 'Busca en notas, titulos, etiquetas y ambitos.',
+          'screens.drive': 'El backup opcional de Google Drive usa la carpeta privada de datos de la app.',
+          'screens.reminders': 'Los recordatorios muestran alertas del navegador y sonido.',
+          'screens.workspaces': 'Los espacios separan notas de clientes, proyectos y tareas.',
+          'privacy.eyebrow': 'Privado por diseno',
+          'privacy.title': 'Sin cuenta TabNotes. Sin servidor TabNotes. Sin tracking.',
+          'privacy.body':
+            'Las notas se guardan localmente en Chrome por defecto. Exportar y restaurar usa archivos JSON bajo tu control. Si activas Drive, la extension habla directamente con Google Drive usando el scope limitado drive.appdata.',
+          'privacy.policy': 'Leer politica de privacidad',
+          'privacy.terms': 'Leer terminos',
+          'footer.release': 'TabNotes v2.10.2 - Publicado para Chrome',
+          'footer.license': 'Licencia MIT, notas local-first',
+        },
+      };
+
+      const toggle = document.querySelector('[data-language-toggle]');
+      const savedLanguage = localStorage.getItem('tabnotes-site-language');
+      let currentLanguage = savedLanguage === 'es' ? 'es' : 'en';
+
+      function applyLanguage(language) {
+        currentLanguage = language;
+        document.documentElement.lang = language;
+        document.querySelectorAll('[data-i18n]').forEach((node) => {
+          const key = node.getAttribute('data-i18n');
+          node.textContent = messages[language][key] || messages.en[key] || node.textContent;
+        });
+        toggle.textContent = language === 'en' ? 'ES' : 'EN';
+        localStorage.setItem('tabnotes-site-language', language);
+      }
+
+      toggle.addEventListener('click', () => {
+        applyLanguage(currentLanguage === 'en' ? 'es' : 'en');
+      });
+
+      applyLanguage(currentLanguage);
+    </script>
   </body>
 </html>
