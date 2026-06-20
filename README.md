@@ -4,15 +4,20 @@
 
 **Contextual notes for the page, domain, workspace, or browser context you are working in.**
 
+<p>
+  <a href="README.md"><img alt="Language: English" src="https://img.shields.io/badge/Language-English-ffd84d?style=for-the-badge&labelColor=111215"></a>
+  <a href="README.es.md"><img alt="Idioma: Español" src="https://img.shields.io/badge/Idioma-Espa%C3%B1ol-2f3138?style=for-the-badge&labelColor=111215"></a>
+</p>
+
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Published-ffd84d?logo=googlechrome&logoColor=111215)](https://chromewebstore.google.com/detail/tabnotes/pniapenkdphjolncppcichbahomfiffj)
 [![Version](https://img.shields.io/badge/version-2.10.2-79a7ff)](./tabnotes-extension.zip)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-7ee0a1)](apps/extension/public/manifest.json)
-[![License: MIT](https://img.shields.io/badge/License-MITffffff)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-ffffff)](LICENSE)
 
 **Notes that know where you are.**
 
 [Install from Chrome Web Store](https://chromewebstore.google.com/detail/tabnotes/pniapenkdphjolncppcichbahomfiffj) ·
-[Public site](https://tabnotes.atlaspcsupport.com/) ·
+[Product site](https://tabnotes.atlaspcsupport.com/) ·
 [Privacy](https://tabnotes.atlaspcsupport.com/privacy/)
 
 </div>
@@ -26,7 +31,7 @@
 | Public version | `2.10.2` |
 | Chrome Web Store ID | `pniapenkdphjolncppcichbahomfiffj` |
 | Store package | [`tabnotes-extension.zip`](./tabnotes-extension.zip) |
-| Main website | `https://tabnotes.atlaspcsupport.com/` |
+| Product site | `https://tabnotes.atlaspcsupport.com/` |
 | Privacy policy | `https://tabnotes.atlaspcsupport.com/privacy/` |
 | Terms | `https://tabnotes.atlaspcsupport.com/terms/` |
 
@@ -49,7 +54,7 @@ The extension runs in Chrome's side panel, autosaves notes locally, supports mul
 | Organization | Workspaces, folders, tags, pinned notes, note colors, search, note graph |
 | Productivity | Command palette, contextual clipping, reminders, daily digest, backup reminders |
 | Privacy | Local-first storage, JSON export/restore, optional Drive backup, per-note encryption, PIN lock |
-| Internationalization | English and Spanish interface support |
+| Languages | English and Spanish interface support |
 
 ## Screenshots
 
@@ -84,32 +89,12 @@ The recommended install path is the Chrome Web Store. For local testing:
 
 ## Development
 
-### Requirements
-
-- Node.js 20+
-- pnpm 10+
-
-### Setup
-
 ```bash
 pnpm install
-```
-
-### Build
-
-```bash
-pnpm build
-pnpm --filter @tabnotes/extension build
-```
-
-### Test
-
-```bash
 pnpm --filter @tabnotes/extension typecheck
 pnpm --filter @tabnotes/extension e2e
+pnpm --filter @tabnotes/extension build
 ```
-
-The extension E2E suite loads the built extension into Chromium and verifies side panel boot, navigation, backup/export/import, editor autosave, reminders, templates, language switching, move note, and layout behavior.
 
 ## Repository Structure
 
@@ -125,20 +110,6 @@ packages/
 store/             Chrome Web Store listing text and final screenshots
 ```
 
-## Espanol
-
-TabNotes es una extension de Chrome para tomar notas contextuales segun la pagina, dominio, espacio de trabajo o contexto global del navegador.
-
-- Guarda notas localmente por defecto.
-- Permite multiples notas por pagina, dominio o workspace.
-- Incluye busqueda, etiquetas, carpetas, plantillas, recordatorios y modo claro/oscuro.
-- Puede hacer backup opcional en Google Drive usando la carpeta privada de datos de la app.
-- No usa servidor propio para tus notas y no incluye tracking.
-
-Instalacion recomendada:
-
-[Instalar desde Chrome Web Store](https://chromewebstore.google.com/detail/tabnotes/pniapenkdphjolncppcichbahomfiffj)
-
 ## License
 
-MIT © TabNotes contributors
+[MIT](LICENSE).
