@@ -29,8 +29,9 @@
       <p class="updated">Effective date: June 20, 2026</p>
       <h1>Privacy Policy</h1>
       <p class="lead">
-        TabNotes is a local-first Chrome extension. We collect no personal data. Your notes stay on
-        your device unless you explicitly enable optional Google Drive backup.
+        TabNotes is a local-first Chrome extension and companion mobile PWA. We collect no personal
+        data. Your notes stay on your device unless you explicitly enable optional Google Drive
+        sync.
       </p>
 
       <section>
@@ -51,15 +52,15 @@
       </section>
 
       <section>
-        <h2>Optional Google Drive backup</h2>
+        <h2>Optional Google Drive sync</h2>
         <p>
           If you choose to connect Google Drive, TabNotes uses Chrome's identity API and the Google
-          Drive <code>drive.appdata</code> scope to create or update a backup file in your private
+          Drive <code>drive.appdata</code> scope to create or update a sync file in your private
           Google Drive app data folder.
         </p>
         <p>
-          The backup is transferred directly between the extension and Google Drive. The TabNotes
-          developer cannot access your Google account, your notes, or your backup file.
+          The sync data is transferred directly between TabNotes and Google Drive. The TabNotes
+          developer cannot access your Google account, your notes, or your sync file.
         </p>
       </section>
 
@@ -77,13 +78,13 @@
           <dt>contextMenus</dt>
           <dd>Adds "Clip selection to TabNotes" when the user selects text and uses the context menu.</dd>
           <dt>identity</dt>
-          <dd>Allows optional Google sign-in for Google Drive backup.</dd>
+          <dd>Allows optional Google sign-in for Google Drive sync.</dd>
           <dt>offscreen</dt>
           <dd>Plays local reminder audio when a note reminder fires.</dd>
           <dt>alarms and notifications</dt>
           <dd>Schedules reminders and displays user-requested reminder notifications.</dd>
           <dt>https://www.googleapis.com/*</dt>
-          <dd>Calls Google Drive APIs only when the user enables Drive backup.</dd>
+          <dd>Calls Google Drive APIs only when the user enables Drive sync.</dd>
         </dl>
       </section>
 
@@ -99,7 +100,7 @@
         <h2>Third-party services</h2>
         <p>
           TabNotes does not include third-party analytics, advertising, telemetry, or tracking
-          services. Google Drive is used only if you opt in to Drive backup.
+          services. Google Drive is used only if you opt in to Drive sync.
         </p>
       </section>
 

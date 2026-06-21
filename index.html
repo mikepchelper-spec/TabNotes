@@ -6,13 +6,13 @@
     <title>TabNotes - Contextual notes for Chrome</title>
     <meta
       name="description"
-      content="TabNotes is a published Chrome extension for local-first contextual notes, workspaces, reminders, and optional Google Drive backup."
+      content="TabNotes is a published Chrome extension for local-first contextual notes, workspaces, reminders, mobile PWA access, and optional Google Drive sync."
     />
     <meta name="robots" content="index,follow" />
     <meta property="og:title" content="TabNotes - Notes that know where you are" />
     <meta
       property="og:description"
-      content="Capture notes by URL, domain, workspace, or global context. Local-first, private by design, with optional Google Drive backup."
+      content="Capture notes by URL, domain, workspace, or global context. Local-first, private by design, with optional Google Drive sync."
     />
     <meta property="og:image" content="/assets/screenshots/editor-url-note.png" />
     <link rel="icon" href="/assets/icon512.png" />
@@ -73,7 +73,7 @@
 
       <section class="status-strip" aria-label="Release facts">
         <article>
-          <span>2.10.2</span>
+          <span>2.11.0</span>
           <p data-i18n="facts.version">Current public version</p>
         </article>
         <article>
@@ -86,7 +86,7 @@
         </article>
         <article>
           <span>Drive appData</span>
-          <p data-i18n="facts.drive">Optional private Google Drive backup</p>
+          <p data-i18n="facts.drive">Optional private Google Drive sync</p>
         </article>
       </section>
 
@@ -133,8 +133,8 @@
             <figcaption data-i18n="screens.search">Search across every note, title, tag, and scope.</figcaption>
           </figure>
           <figure class="feature-shot">
-            <img src="/assets/screenshots/drive-backup.png" alt="Google Drive backup settings" />
-            <figcaption data-i18n="screens.drive">Optional Google Drive backup uses the limited app data folder.</figcaption>
+            <img src="/assets/screenshots/drive-backup.png" alt="Google Drive sync settings" />
+            <figcaption data-i18n="screens.drive">Optional Google Drive sync uses the limited app data folder.</figcaption>
           </figure>
           <figure class="feature-shot">
             <img src="/assets/screenshots/reminders.png" alt="TabNotes reminders" />
@@ -155,7 +155,7 @@
         <div class="trust-copy">
           <p data-i18n="privacy.body">
             Notes are stored locally in Chrome by default. Export and restore use JSON files you
-            control. If you enable Drive backup, the extension talks directly to Google Drive using
+            control. If you enable Drive sync, TabNotes talks directly to Google Drive using
             the limited drive.appdata scope.
           </p>
           <div class="trust-actions">
@@ -167,7 +167,7 @@
     </main>
 
     <footer class="site-footer">
-      <span data-i18n="footer.release">TabNotes v2.10.2 - Published for Chrome</span>
+      <span data-i18n="footer.release">TabNotes v2.11.0 - Published for Chrome</span>
       <span data-i18n="footer.license">MIT licensed, local-first note taking</span>
     </footer>
 
@@ -186,7 +186,7 @@
           'facts.version': 'Current public version',
           'facts.mv3': 'Store-safe Chrome extension',
           'facts.local': 'Notes stay in your browser by default',
-          'facts.drive': 'Optional private Google Drive backup',
+          'facts.drive': 'Optional private Google Drive sync',
           'features.eyebrow': 'Built around your browsing context',
           'features.title': 'The note is already filed before you start writing.',
           'features.url.title': 'URL notes',
@@ -204,16 +204,16 @@
           'screens.eyebrow': 'Product views',
           'screens.title': 'A focused side panel for writing, finding, and restoring notes.',
           'screens.search': 'Search across every note, title, tag, and scope.',
-          'screens.drive': 'Optional Google Drive backup uses the limited app data folder.',
+          'screens.drive': 'Optional Google Drive sync uses the limited app data folder.',
           'screens.reminders': 'Reminders notify you with browser alerts and sound.',
           'screens.workspaces': 'Workspaces keep client, project, and task notes separated.',
           'privacy.eyebrow': 'Private by design',
           'privacy.title': 'No TabNotes account. No TabNotes server. No tracking.',
           'privacy.body':
-            'Notes are stored locally in Chrome by default. Export and restore use JSON files you control. If you enable Drive backup, the extension talks directly to Google Drive using the limited drive.appdata scope.',
+            'Notes are stored locally in Chrome by default. Export and restore use JSON files you control. If you enable Drive sync, TabNotes talks directly to Google Drive using the limited drive.appdata scope.',
           'privacy.policy': 'Read privacy policy',
           'privacy.terms': 'Read terms',
-          'footer.release': 'TabNotes v2.10.2 - Published for Chrome',
+          'footer.release': 'TabNotes v2.11.0 - Published for Chrome',
           'footer.license': 'MIT licensed, local-first note taking',
         },
         es: {
@@ -229,7 +229,7 @@
           'facts.version': 'Version publica actual',
           'facts.mv3': 'Extension Chrome lista para la tienda',
           'facts.local': 'Tus notas quedan en el navegador por defecto',
-          'facts.drive': 'Backup privado opcional en Google Drive',
+          'facts.drive': 'Sync privado opcional en Google Drive',
           'features.eyebrow': 'Pensado para el contexto donde trabajas',
           'features.title': 'La nota ya esta organizada antes de empezar a escribir.',
           'features.url.title': 'Notas por URL',
@@ -247,16 +247,16 @@
           'screens.eyebrow': 'Vistas del producto',
           'screens.title': 'Un panel lateral enfocado para escribir, buscar y restaurar notas.',
           'screens.search': 'Busca en notas, titulos, etiquetas y ambitos.',
-          'screens.drive': 'El backup opcional de Google Drive usa la carpeta privada de datos de la app.',
+          'screens.drive': 'El sync opcional de Google Drive usa la carpeta privada de datos de la app.',
           'screens.reminders': 'Los recordatorios muestran alertas del navegador y sonido.',
           'screens.workspaces': 'Los espacios separan notas de clientes, proyectos y tareas.',
           'privacy.eyebrow': 'Privado por diseno',
           'privacy.title': 'Sin cuenta TabNotes. Sin servidor TabNotes. Sin tracking.',
           'privacy.body':
-            'Las notas se guardan localmente en Chrome por defecto. Exportar y restaurar usa archivos JSON bajo tu control. Si activas Drive, la extension habla directamente con Google Drive usando el scope limitado drive.appdata.',
+            'Las notas se guardan localmente en Chrome por defecto. Exportar y restaurar usa archivos JSON bajo tu control. Si activas Drive, TabNotes habla directamente con Google Drive usando el scope limitado drive.appdata.',
           'privacy.policy': 'Leer politica de privacidad',
           'privacy.terms': 'Leer terminos',
-          'footer.release': 'TabNotes v2.10.2 - Publicado para Chrome',
+          'footer.release': 'TabNotes v2.11.0 - Publicado para Chrome',
           'footer.license': 'Licencia MIT, notas local-first',
         },
       };
