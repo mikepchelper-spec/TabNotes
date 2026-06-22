@@ -4,6 +4,7 @@ import {
   handleDriveMessage,
   recordDriveDeletionTombstones,
   scheduleDriveAutoSync,
+  scheduleDrivePeriodicSync,
 } from './driveSync';
 import {
   ACTIVE_REMINDER_ALERT_STORAGE_KEY,
@@ -688,6 +689,7 @@ chrome.runtime.onInstalled.addListener(() => {
   updateBadgeForActiveTab();
   scheduleDigest();
   scheduleBackupCheck();
+  void scheduleDrivePeriodicSync().catch(() => undefined);
   void restoreNoteReminderAlarms().catch(() => undefined);
   void restoreReminderAlertIfNeeded().catch(() => undefined);
 });
@@ -696,6 +698,7 @@ chrome.runtime.onStartup.addListener(() => {
   createClipContextMenu();
   scheduleDigest();
   scheduleBackupCheck();
+  void scheduleDrivePeriodicSync().catch(() => undefined);
   void restoreNoteReminderAlarms().catch(() => undefined);
   void restoreReminderAlertIfNeeded().catch(() => undefined);
 });

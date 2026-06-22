@@ -90,7 +90,7 @@ export default function AboutPage() {
         </div>
         <h1 style={{
           fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700,
-          color: 'var(--color-text)', letterSpacing: '-1px', lineHeight: 1.15,
+          color: 'var(--color-text)', letterSpacing: 0, lineHeight: 1.15,
           marginBottom: 'var(--space-4)',
         }}>
           Everything TabNotes can do
@@ -111,7 +111,7 @@ export default function AboutPage() {
             border: '1px solid var(--color-border)', background: 'var(--color-bg-subtle)',
             textAlign: 'center',
           }}>
-            <div style={{ fontSize: 'clamp(24px,3vw,36px)', fontWeight: 800, letterSpacing: '-1px', color: 'var(--color-accent)' }}>{s.value}</div>
+            <div style={{ fontSize: 'clamp(24px,3vw,36px)', fontWeight: 800, letterSpacing: 0, color: 'var(--color-accent)' }}>{s.value}</div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
@@ -126,7 +126,7 @@ export default function AboutPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: cat.color + '18',
             }}>{cat.icon}</div>
-            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: '-0.4px' }}>{cat.category}</h2>
+            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: 0 }}>{cat.category}</h2>
           </div>
           <div style={{
             display: 'grid',
@@ -177,7 +177,7 @@ export default function AboutPage() {
         background: 'linear-gradient(135deg, var(--color-accent-subtle) 0%, var(--color-bg-subtle) 100%)',
         border: '1px solid var(--color-border)',
       }}>
-        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: '-0.5px', marginBottom: 'var(--space-3)' }}>
+        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: 0, marginBottom: 'var(--space-3)' }}>
           Ready to try it?
         </h2>
         <p style={{ fontSize: 'var(--text-md)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-6)' }}>
@@ -185,12 +185,12 @@ export default function AboutPage() {
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <a
-            href="https://github.com/mikepchelner-spec/TabNotes"
+            href="https://github.com/mikepchelper-spec/TabNotes"
             target="_blank" rel="noopener noreferrer"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 7,
               padding: '10px 22px', borderRadius: 'var(--radius-md)',
-              background: 'var(--color-accent)', color: '#fff',
+              background: 'var(--color-accent)', color: 'var(--color-accent-ink)',
               fontWeight: 600, fontSize: 'var(--text-sm)', textDecoration: 'none',
             }}
           >

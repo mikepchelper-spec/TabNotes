@@ -4,10 +4,10 @@ import { useNotesStore } from '../store/notes';
 import { formatRelativeTime } from '@tabnotes/shared';
 
 const SCOPE_ICONS: Record<string, string> = {
-  url: '🔗',
-  domain: '🌐',
+  url: '⌁',
+  domain: '◎',
   workspace: '⊞',
-  global: '🌍',
+  global: '◇',
 };
 
 export default function HomePage() {
@@ -29,7 +29,7 @@ export default function HomePage() {
 
   const featureCards = [
     {
-      icon: '🔗',
+      icon: '⌁',
       title: 'Scoped by URL',
       desc: 'Attach notes directly to a specific page so context is never lost when you switch tasks.',
     },
@@ -39,12 +39,12 @@ export default function HomePage() {
       desc: 'Group notes by project and jump between active workstreams with one click.',
     },
     {
-      icon: '⚡',
+      icon: '✦',
       title: 'Fast Capture',
       desc: 'Keep writing velocity high with autosave, shortcuts, tags, and inline organization.',
     },
     {
-      icon: '🔒',
+      icon: '◇',
       title: 'Private by Default',
       desc: 'No account, no server dependency, no sync lock-in. Your notes stay in your browser.',
     },
@@ -57,7 +57,7 @@ export default function HomePage() {
           border: '1px solid color-mix(in srgb, var(--color-border) 80%, transparent)',
           borderRadius: 'var(--radius-xl)',
           background:
-            'radial-gradient(900px 400px at 10% -20%, rgba(47,109,255,0.28), transparent 60%), var(--color-bg-card)',
+            'radial-gradient(900px 400px at 10% -20%, color-mix(in srgb, var(--color-accent) 24%, transparent), transparent 60%), var(--color-bg-card)',
           boxShadow: 'var(--shadow-lg)',
           overflow: 'hidden',
         }}
@@ -83,7 +83,7 @@ export default function HomePage() {
                 padding: '4px 12px',
                 fontSize: 'var(--text-xs)',
                 fontWeight: 700,
-                letterSpacing: '0.02em',
+                letterSpacing: 0,
               }}
             >
               Productive notes for every tab
@@ -94,7 +94,7 @@ export default function HomePage() {
                 fontSize: 'clamp(32px, 5vw, 58px)',
                 fontWeight: 700,
                 lineHeight: 1.03,
-                letterSpacing: '-0.045em',
+                letterSpacing: 0,
                 color: 'var(--color-text)',
               }}
             >
@@ -125,7 +125,7 @@ export default function HomePage() {
                   padding: '11px 20px',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--color-accent)',
-                  color: '#fff',
+                  color: 'var(--color-accent-ink)',
                   fontWeight: 700,
                   fontSize: 'var(--text-sm)',
                   boxShadow: 'var(--shadow-accent)',
@@ -348,7 +348,7 @@ export default function HomePage() {
               padding: '10px 20px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--color-accent)',
-              color: '#fff',
+              color: 'var(--color-accent-ink)',
               fontWeight: 700,
               fontSize: 'var(--text-sm)',
               textDecoration: 'none',

@@ -1,20 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
 :root {
-  --color-bg-rgb: 242, 246, 255;
-  --color-bg: #f2f6ff;
+  --color-bg-rgb: 245, 246, 248;
+  --color-bg: #f5f6f8;
   --color-bg-card: #ffffff;
-  --color-bg-subtle: #e8eefc;
-  --color-bg-muted: #dce5f8;
-  --color-border: #c7d4ee;
-  --color-border-strong: #a9bcdf;
-  --color-text: #0f1a30;
-  --color-text-muted: #41567a;
-  --color-text-subtle: #607294;
-  --color-accent: #2f6dff;
-  --color-accent-hover: #2059dc;
-  --color-accent-subtle: #dce8ff;
-  --color-accent-muted: #bfd2ff;
+  --color-bg-subtle: #eef0f4;
+  --color-bg-muted: #e2e5eb;
+  --color-border: #d8dce4;
+  --color-border-strong: #bfc5d0;
+  --color-text: #15171c;
+  --color-text-muted: #424852;
+  --color-text-subtle: #747b87;
+  --color-accent: #dcae19;
+  --color-accent-hover: #c79a13;
+  --color-accent-subtle: #fff2bd;
+  --color-accent-muted: #9d780d;
+  --color-accent-ink: #15130a;
   --color-success: #1fa971;
   --color-success-subtle: #dff8ed;
   --color-danger: #c83757;
@@ -37,9 +36,9 @@
   --space-10: 40px;
   --space-12: 48px;
 
-  --font-sans: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
-  --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
-  --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
   --text-xs: 11px;
   --text-sm: 13px;
   --text-md: 15px;
@@ -52,7 +51,7 @@
   --shadow-md: 0 8px 22px rgba(16, 31, 64, 0.11), 0 2px 10px rgba(16, 31, 64, 0.07);
   --shadow-lg: 0 20px 45px rgba(16, 31, 64, 0.16), 0 8px 24px rgba(16, 31, 64, 0.09);
   --shadow-xl: 0 30px 70px rgba(16, 31, 64, 0.22), 0 12px 40px rgba(16, 31, 64, 0.12);
-  --shadow-accent: 0 8px 24px rgba(47, 109, 255, 0.3);
+  --shadow-accent: 0 8px 24px rgba(220, 174, 25, 0.28);
 
   --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -60,20 +59,21 @@
 }
 
 [data-theme="dark"] {
-  --color-bg-rgb: 10, 12, 20;
-  --color-bg: #0a0c14;
-  --color-bg-card: #12172a;
-  --color-bg-subtle: #161c31;
-  --color-bg-muted: #1d2642;
-  --color-border: #29345a;
-  --color-border-strong: #3a4a78;
-  --color-text: #eff5ff;
-  --color-text-muted: #bdc8df;
-  --color-text-subtle: #8797b9;
-  --color-accent: #2f6dff;
-  --color-accent-hover: #5788ff;
-  --color-accent-subtle: #152043;
-  --color-accent-muted: #213677;
+  --color-bg-rgb: 21, 22, 25;
+  --color-bg: #151619;
+  --color-bg-card: #1d1e22;
+  --color-bg-subtle: #24252a;
+  --color-bg-muted: #2d2e34;
+  --color-border: #35363d;
+  --color-border-strong: #4a4c55;
+  --color-text: #ffffff;
+  --color-text-muted: #d9dadd;
+  --color-text-subtle: #999ca5;
+  --color-accent: #dcae19;
+  --color-accent-hover: #f2c735;
+  --color-accent-subtle: #352b12;
+  --color-accent-muted: #6b5412;
+  --color-accent-ink: #15130a;
   --color-success: #3ebd7d;
   --color-success-subtle: #112c26;
   --color-danger: #f56f8b;
@@ -84,7 +84,7 @@
   --shadow-md: 0 12px 30px rgba(2, 5, 14, 0.55), 0 3px 10px rgba(2, 5, 14, 0.35);
   --shadow-lg: 0 22px 60px rgba(2, 5, 14, 0.65), 0 8px 24px rgba(2, 5, 14, 0.45);
   --shadow-xl: 0 34px 90px rgba(2, 5, 14, 0.78), 0 12px 40px rgba(2, 5, 14, 0.5);
-  --shadow-accent: 0 10px 28px rgba(47, 109, 255, 0.34);
+  --shadow-accent: 0 10px 28px rgba(220, 174, 25, 0.34);
 }
 
 *, *::before, *::after {
@@ -103,8 +103,8 @@ body {
   color: var(--color-text);
   line-height: 1.55;
   background:
-    radial-gradient(1200px 650px at 5% -10%, rgba(47, 109, 255, 0.2), transparent 60%),
-    radial-gradient(900px 520px at 85% 0%, rgba(97, 140, 255, 0.15), transparent 58%),
+    radial-gradient(980px 540px at 4% -10%, rgba(220, 174, 25, 0.1), transparent 62%),
+    radial-gradient(820px 480px at 88% -8%, rgba(255, 255, 255, 0.05), transparent 58%),
     linear-gradient(180deg, rgba(var(--color-bg-rgb), 1) 0%, rgba(var(--color-bg-rgb), 0.98) 100%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -137,7 +137,7 @@ h4,
 h5,
 h6 {
   font-family: var(--font-display);
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
 input,
@@ -178,7 +178,7 @@ select {
 @media (max-width: 820px) {
   body {
     background:
-      radial-gradient(700px 400px at 12% -8%, rgba(47, 109, 255, 0.22), transparent 62%),
+      radial-gradient(700px 400px at 12% -8%, rgba(220, 174, 25, 0.12), transparent 62%),
       linear-gradient(180deg, rgba(var(--color-bg-rgb), 1) 0%, rgba(var(--color-bg-rgb), 0.98) 100%);
   }
 

@@ -27,7 +27,9 @@ import { DriveApiError, findBackupFile, loadBackupFile, saveBackupFile } from '.
 export const DRIVE_SYNC_STORAGE_KEY = 'tn_drive_sync';
 export const DRIVE_REMOTE_APPLY_STORAGE_KEY = 'tn_drive_remote_apply';
 const DRIVE_AUTO_SYNC_ALARM = 'tn_drive_auto_sync';
+const DRIVE_PERIODIC_SYNC_ALARM = 'tn_drive_periodic_sync';
 const SYNC_DEBOUNCE_MS = 3_000;
+const PERIODIC_SYNC_MINUTES = 5;
 
 type DriveSyncStatus = 'idle' | 'syncing' | 'ok' | 'error' | 'disconnected' | 'setup_required' | 'blocked';
 type DriveSyncSource = 'auto' | 'manual' | 'connect';
@@ -113,6 +115,21 @@ function getAllNotes(data: StorageData): Note[] {
     ...Object.values(data.notes_workspace ?? {}),
     ...Object.values(data.notes_global ?? {}),
   ];
+}
+
+function getAllWorkspaces(data: StorageData): Workspace[] {
+  return Object.values(data.workspaces ?? {});
+}
+
+function hasLocalChangesSinceLastSync(data: StorageData, state: DriveSyncState): boolean {
+  const lastSyncedAt = state.lastSyncedAt ?? 0;
+  if (!lastSyncedAt) return true;
+
+  return (
+    getAllNotes(data).some((note) => (note.updatedAt ?? note.createdAt ?? 0) > lastSyncedAt) ||
+    getAllWorkspaces(data).some((workspace) => (workspace.updatedAt ?? workspace.createdAt ?? 0) > lastSyncedAt) ||
+    (state.tombstones ?? []).some((tombstone) => tombstone.deletedAt > lastSyncedAt)
+  );
 }
 
 function pruneTombstones(tombstones: SyncTombstone[], now = Date.now()): SyncTombstone[] {
@@ -266,6 +283,15 @@ async function saveCurrentBackupWithToken(token: string): Promise<DriveSyncState
   });
 }
 
+async function shouldSkipAutomaticSync(token: string, state: DriveSyncState): Promise<boolean> {
+  const local = await getCurrentStorage();
+  if (hasLocalChangesSinceLastSync(local, state)) return false;
+
+  const remoteFile = await findBackupFile(token);
+  if (!remoteFile) return false;
+  return Boolean(state.remoteModifiedTime && state.remoteModifiedTime === remoteFile.modifiedTime);
+}
+
 async function failDriveSync(error: unknown, shouldThrow: boolean): Promise<DriveSyncState> {
   const message = driveErrorMessage(error);
   const state = await setDriveState({ status: 'error', lastError: message });
@@ -333,6 +359,8 @@ export async function connectDriveSync() {
     await performDriveBackup('connect', token);
   }
 
+  await scheduleDrivePeriodicSync();
+
   return {
     ...(await getDriveSyncStatus()),
     hasBackup: Boolean(backupFile),
@@ -340,23 +368,33 @@ export async function connectDriveSync() {
 }
 
 export async function performDriveBackup(source: DriveSyncSource = 'manual', existingToken?: string) {
-  await assertDriveFeatureAllowed();
-  await assertOAuthConfigured();
-
   const currentState = await getDriveState();
   if (!currentState.enabled && source === 'auto') return currentState;
+
+  await assertDriveFeatureAllowed();
+  await assertOAuthConfigured();
 
   await setDriveState({ status: 'syncing', lastError: undefined });
 
   let token = existingToken;
   try {
     token = token ?? (await getGoogleAuthToken(false));
-    return await saveCurrentBackupWithToken(token);
+    if (source === 'auto' && await shouldSkipAutomaticSync(token, currentState)) {
+      return setDriveState({
+        status: currentState.enabled ? 'ok' : currentState.status,
+        lastError: undefined,
+      });
+    }
+    const state = await saveCurrentBackupWithToken(token);
+    await scheduleDrivePeriodicSync();
+    return state;
   } catch (error) {
     if (error instanceof DriveApiError && error.status === 401 && token) {
       try {
         const freshToken = await refreshGoogleAuthToken(token);
-        return await saveCurrentBackupWithToken(freshToken);
+        const state = await saveCurrentBackupWithToken(freshToken);
+        await scheduleDrivePeriodicSync();
+        return state;
       } catch (retryError) {
         return failDriveSync(retryError, source !== 'auto');
       }
@@ -387,7 +425,7 @@ export async function restoreDriveBackup() {
     [DRIVE_REMOTE_APPLY_STORAGE_KEY]: { at: Date.now(), source: 'drive-restore' },
   });
   await applyBackupPrefs(envelope.data.prefs);
-  await setDriveState({
+  const nextState = await setDriveState({
     enabled: true,
     status: 'ok',
     lastRestoreAt: new Date().toISOString(),
@@ -396,8 +434,10 @@ export async function restoreDriveBackup() {
     tombstones: merged.tombstones,
     lastError: undefined,
   });
+  await scheduleDrivePeriodicSync();
 
   return {
+    ...nextState,
     ...(await getDriveSyncStatus()),
     restoredAt: envelope.syncedAt,
     summary: merged.summary,
@@ -446,6 +486,7 @@ export async function recordDriveDeletionTombstones(
 export async function disconnectDriveSync() {
   await disconnectGoogle();
   await chromeAlarmClear(DRIVE_AUTO_SYNC_ALARM);
+  await chromeAlarmClear(DRIVE_PERIODIC_SYNC_ALARM);
   return setDriveState({
     enabled: false,
     status: 'disconnected',
@@ -455,13 +496,23 @@ export async function disconnectDriveSync() {
 
 export async function scheduleDriveAutoSync(): Promise<void> {
   const state = await getDriveState();
-  if (!state.enabled) return;
+  if (!state.enabled || !state.lastSyncedAt) return;
   await chromeAlarmClear(DRIVE_AUTO_SYNC_ALARM);
   chrome.alarms.create(DRIVE_AUTO_SYNC_ALARM, { when: Date.now() + SYNC_DEBOUNCE_MS });
 }
 
+export async function scheduleDrivePeriodicSync(): Promise<void> {
+  const state = await getDriveState();
+  await chromeAlarmClear(DRIVE_PERIODIC_SYNC_ALARM);
+  if (!state.enabled) return;
+  chrome.alarms.create(DRIVE_PERIODIC_SYNC_ALARM, {
+    delayInMinutes: 1,
+    periodInMinutes: PERIODIC_SYNC_MINUTES,
+  });
+}
+
 export async function handleDriveAlarm(alarmName: string): Promise<boolean> {
-  if (alarmName !== DRIVE_AUTO_SYNC_ALARM) return false;
+  if (alarmName !== DRIVE_AUTO_SYNC_ALARM && alarmName !== DRIVE_PERIODIC_SYNC_ALARM) return false;
   await performDriveBackup('auto');
   return true;
 }
@@ -474,6 +525,7 @@ export function handleDriveMessage(
     DRIVE_GET_STATUS: getDriveSyncStatus,
     DRIVE_CONNECT: connectDriveSync,
     DRIVE_SYNC_NOW: () => performDriveBackup('manual'),
+    DRIVE_SYNC_IF_ENABLED: () => performDriveBackup('auto'),
     DRIVE_RESTORE: restoreDriveBackup,
     DRIVE_DISCONNECT: disconnectDriveSync,
   };

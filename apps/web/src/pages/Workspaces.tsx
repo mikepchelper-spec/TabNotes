@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNotesStore } from '../store/notes';
 
 const WORKSPACE_COLORS = [
+  { value: '#dcae19', label: 'Yellow' },
   { value: '#2f6dff', label: 'Blue' },
   { value: '#ef4444', label: 'Red' },
   { value: '#f59e0b', label: 'Orange' },
@@ -15,7 +16,7 @@ const WORKSPACE_COLORS = [
 export default function WorkspacesPage() {
   const { workspaces, notes, activeWorkspaceId, load, createWorkspace, updateWorkspace, deleteWorkspace, setActiveWorkspace } = useNotesStore();
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState('#2f6dff');
+  const [newColor, setNewColor] = useState('#dcae19');
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
@@ -31,7 +32,7 @@ export default function WorkspacesPage() {
     setCreating(true);
     await createWorkspace(newName.trim(), newColor);
     setNewName('');
-    setNewColor('#2f6dff');
+    setNewColor('#dcae19');
     setCreating(false);
   };
 
@@ -53,7 +54,7 @@ export default function WorkspacesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)', maxWidth: 640 }}>
       <div>
-        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: '-0.5px' }}>Workspaces</h1>
+        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: 0 }}>Workspaces</h1>
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 4 }}>
           Organize your notes into projects and switch contexts instantly.
         </p>
@@ -86,7 +87,7 @@ export default function WorkspacesPage() {
               borderRadius: 'var(--radius-md)',
               border: 'none',
               background: 'var(--color-accent)',
-              color: '#fff',
+              color: 'var(--color-accent-ink)',
               fontWeight: 600,
               fontSize: 'var(--text-sm)',
               cursor: 'pointer',
@@ -157,7 +158,7 @@ export default function WorkspacesPage() {
             onClick={() => setActiveWorkspace(null)}
           >
             <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--color-bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-              🌍
+              ◇
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>No Workspace (Global)</div>
@@ -232,7 +233,7 @@ export default function WorkspacesPage() {
                         />
                         <button
                           onClick={() => handleUpdate(ws.id)}
-                          style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
+                          style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--color-accent)', color: 'var(--color-accent-ink)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
                         >
                           Save
                         </button>
@@ -276,7 +277,7 @@ export default function WorkspacesPage() {
                 {!isEditing && (
                   <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
                     <button
-                      onClick={() => { setEditId(ws.id); setEditName(ws.name); setEditColor(ws.color || '#2f6dff'); }}
+                      onClick={() => { setEditId(ws.id); setEditName(ws.name); setEditColor(ws.color || '#dcae19'); }}
                       style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-bg-muted)', color: 'var(--color-text-muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
                     >
                       Edit

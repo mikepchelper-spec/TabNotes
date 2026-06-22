@@ -13,7 +13,7 @@ const SCOPE_OPTIONS: { value: NoteScope; label: string; desc: string }[] = [
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, letterSpacing: '-0.2px', color: 'var(--color-text)' }}>{title}</h2>
+      <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, letterSpacing: 0, color: 'var(--color-text)' }}>{title}</h2>
       {children}
     </div>
   );
@@ -70,7 +70,7 @@ export default function SettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)', maxWidth: 560 }}>
       <div>
-        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: '-0.5px' }}>Settings</h1>
+        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: 0 }}>Settings</h1>
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 4 }}>Manage your TabNotes preferences and data.</p>
       </div>
 

@@ -3,10 +3,10 @@ import { useNotesStore } from '../store/notes';
 import { Note, NoteScope, formatRelativeTime, searchNotes, renderMarkdown } from '@tabnotes/shared';
 
 const SCOPE_OPTIONS = [
-  { value: 'url' as NoteScope, label: 'URL', icon: '🔗' },
-  { value: 'domain' as NoteScope, label: 'Domain', icon: '🌐' },
+  { value: 'url' as NoteScope, label: 'URL', icon: '⌁' },
+  { value: 'domain' as NoteScope, label: 'Domain', icon: '◎' },
   { value: 'workspace' as NoteScope, label: 'Workspace', icon: '⊞' },
-  { value: 'global' as NoteScope, label: 'Global', icon: '🌍' },
+  { value: 'global' as NoteScope, label: 'Global', icon: '◇' },
 ];
 
 function parseMarkdown(text: string): string {
@@ -82,7 +82,7 @@ export default function NotesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: '-0.5px' }}>Notes</h1>
+          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: 0 }}>Notes</h1>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 2 }}>
             {workspaceNotes.length} note{workspaceNotes.length !== 1 ? 's' : ''}
             {activeWs ? ` · Workspace: ${activeWs.name}` : ''}
@@ -96,7 +96,7 @@ export default function NotesPage() {
           >
             {SCOPE_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.icon} {s.label}</option>)}
           </select>
-          <button onClick={handleCreate} disabled={creating} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-accent)', color: '#fff', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+          <button onClick={handleCreate} disabled={creating} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-accent)', color: 'var(--color-accent-ink)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
             + New Note
           </button>
         </div>
@@ -105,7 +105,7 @@ export default function NotesPage() {
       {/* Search */}
       <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 200 }}>
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-subtle)', fontSize: 13, pointerEvents: 'none' }}>🔍</span>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-subtle)', fontSize: 13, pointerEvents: 'none' }}>⌕</span>
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -132,7 +132,7 @@ export default function NotesPage() {
       {allTags.length > 0 && (
         <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
           {allTags.map((tag) => (
-            <button key={tag} onClick={() => setSearchQuery(searchQuery === tag ? '' : tag)} style={{ padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)', background: searchQuery === tag ? 'var(--color-accent)' : 'var(--color-bg-muted)', color: searchQuery === tag ? '#fff' : 'var(--color-text-muted)', fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 500 }}>
+            <button key={tag} onClick={() => setSearchQuery(searchQuery === tag ? '' : tag)} style={{ padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)', background: searchQuery === tag ? 'var(--color-accent)' : 'var(--color-bg-muted)', color: searchQuery === tag ? 'var(--color-accent-ink)' : 'var(--color-text-muted)', fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 500 }}>
               #{tag}
             </button>
           ))}

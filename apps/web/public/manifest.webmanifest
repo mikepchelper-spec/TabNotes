@@ -1,14 +1,14 @@
 {
-  "name": "TabNotes Mobile",
+  "name": "TabNotes Web",
   "short_name": "TabNotes",
-  "description": "Mobile access for TabNotes contextual notes.",
+  "description": "Web access for TabNotes contextual notes.",
   "id": "/app/",
   "start_url": "/app/",
   "scope": "/app/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#111215",
-  "theme_color": "#ffd84d",
+  "theme_color": "#dcae19",
   "icons": [
     {
       "src": "favicon.svg",

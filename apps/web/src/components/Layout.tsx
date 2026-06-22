@@ -5,11 +5,11 @@ import { useThemeStore } from '../store/theme';
 const MOBILE_ENTRY = import.meta.env.VITE_TABNOTES_MOBILE_ENTRY === 'true';
 
 const NAV_ITEMS = MOBILE_ENTRY ? [
-  { to: '/', label: 'Mobile', icon: '▣', exact: true },
+  { to: '/', label: 'Web App', icon: '▣', exact: true },
   { to: '/settings', label: 'Settings', icon: '⚙', exact: false },
 ] : [
   { to: '/', label: 'Home', icon: '⌂', exact: true },
-  { to: '/app', label: 'Mobile', icon: '▣', exact: false },
+  { to: '/app', label: 'Web App', icon: '▣', exact: false },
   { to: '/notes', label: 'Notes', icon: '✎', exact: false },
   { to: '/workspaces', label: 'Workspaces', icon: '⊞', exact: false },
   { to: '/about', label: 'About', icon: '✦', exact: false },
@@ -32,7 +32,7 @@ export default function Layout() {
       <header
         style={{
           borderBottom: '1px solid color-mix(in srgb, var(--color-border) 75%, transparent)',
-          background: 'rgba(var(--color-bg-rgb), 0.72)',
+          background: 'color-mix(in srgb, var(--color-bg) 88%, transparent)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           position: 'sticky',
@@ -66,15 +66,15 @@ export default function Layout() {
               style={{
                 width: 30,
                 height: 30,
-                background: 'linear-gradient(140deg, #2f6dff, #2059dc)',
-                borderRadius: 9,
+                background: 'linear-gradient(135deg, #f2c735, #dcae19)',
+                borderRadius: 8,
                 display: 'grid',
                 placeItems: 'center',
-                color: '#ffffff',
+                color: 'var(--color-accent-ink)',
                 fontFamily: 'var(--font-display)',
                 fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: '-0.4px',
+                fontWeight: 800,
+                letterSpacing: 0,
                 boxShadow: 'var(--shadow-accent)',
               }}
             >
@@ -86,8 +86,8 @@ export default function Layout() {
                   fontFamily: 'var(--font-display)',
                   fontSize: 15,
                   fontWeight: 700,
-                  color: 'var(--color-text)',
-                  letterSpacing: '-0.02em',
+                  color: 'var(--color-accent)',
+                  letterSpacing: 0,
                 }}
               >
                 TabNotes
@@ -126,13 +126,13 @@ export default function Layout() {
                   borderRadius: 'var(--radius-full)',
                   fontSize: 'var(--text-sm)',
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
-                  background: isActive ? 'var(--color-bg-card)' : 'transparent',
+                  color: isActive ? 'var(--color-accent-ink)' : 'var(--color-text-muted)',
+                  background: isActive ? 'var(--color-accent)' : 'transparent',
                   textDecoration: 'none',
                   transition: 'all var(--transition-fast)',
-                  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                  boxShadow: isActive ? 'var(--shadow-accent)' : 'none',
                   border: isActive
-                    ? '1px solid color-mix(in srgb, var(--color-border-strong) 80%, transparent)'
+                    ? '1px solid color-mix(in srgb, var(--color-accent-hover) 82%, transparent)'
                     : '1px solid transparent',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,

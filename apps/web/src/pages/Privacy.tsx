@@ -3,7 +3,7 @@ import React from 'react';
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: 'var(--space-8)' }}>
-      <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: '-0.3px', marginBottom: 'var(--space-3)' }}>{title}</h2>
+      <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: 0, marginBottom: 'var(--space-3)' }}>{title}</h2>
       <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-md)', lineHeight: 1.7 }}>
         {children}
       </div>
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', borderRadius: 'var(--radius-full)', padding: '4px 14px', fontSize: 'var(--text-xs)', fontWeight: 600, marginBottom: 'var(--space-5)' }}>
           Last updated: January 2025
         </div>
-        <h1 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, letterSpacing: '-1px', marginBottom: 'var(--space-4)' }}>Privacy Policy</h1>
+        <h1 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, letterSpacing: 0, marginBottom: 'var(--space-4)' }}>Privacy Policy</h1>
         <p style={{ fontSize: 'var(--text-lg)', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
           TabNotes is built on a simple principle: your notes belong to you, only you, and stay on your device.
         </p>

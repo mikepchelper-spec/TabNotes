@@ -31,7 +31,8 @@ import {
 } from '../sync/googleIdentity';
 
 const SYNC_META_KEY = 'tabnotes_web_sync_meta';
-const MISSING_CLIENT_ID_ERROR = 'Missing VITE_GOOGLE_CLIENT_ID for the TabNotes web app.';
+const MISSING_CLIENT_ID_ERROR = 'Missing Google OAuth Web Application client ID for the TabNotes web app.';
+const AUTO_SYNC_DELAY_MS = 1_200;
 
 type SyncStatus =
   | 'offline'
@@ -99,6 +100,7 @@ const adapter = new IndexedDbStorageAdapter();
 const notesService = new NotesService(adapter);
 const workspacesService = new WorkspacesService(adapter);
 let inMemoryToken: string | null = null;
+let autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
 function createDeviceId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -187,6 +189,23 @@ function getNoteFromState(notes: Note[], id: string): Note | undefined {
   return notes.find((note) => note.id === id);
 }
 
+function markLocalChanges(sync: SyncState): SyncState {
+  return {
+    ...sync,
+    status: sync.configured || hasGoogleClientId() ? 'local' : sync.status,
+  };
+}
+
+function scheduleAutoSync(syncWithDrive: () => Promise<void>): void {
+  if (!inMemoryToken) return;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+  if (autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(() => {
+    autoSyncTimer = null;
+    void syncWithDrive();
+  }, AUTO_SYNC_DELAY_MS);
+}
+
 function pruneTombstones(tombstones: SyncTombstone[], now = Date.now()): SyncTombstone[] {
   const cutoff = now - TOMBSTONE_RETENTION_MS;
   const byEntity = new Map<string, SyncTombstone>();
@@ -255,14 +274,16 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
       folder,
     });
     await get().load();
-    set({ sync: { ...get().sync, status: hasGoogleClientId() ? 'local' : get().sync.status } });
+    set({ sync: markLocalChanges(get().sync) });
+    scheduleAutoSync(() => get().syncWithDrive(false));
     return note;
   },
 
   updateNote: async (id, updates) => {
     await notesService.updateNote(id, updates);
     await get().load();
-    set({ sync: { ...get().sync, status: hasGoogleClientId() ? 'local' : get().sync.status } });
+    set({ sync: markLocalChanges(get().sync) });
+    scheduleAutoSync(() => get().syncWithDrive(false));
   },
 
   deleteNote: async (id) => {
@@ -278,20 +299,23 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     }
     await notesService.deleteNote(id);
     await get().load();
-    set({ sync: { ...get().sync, status: hasGoogleClientId() ? 'local' : get().sync.status } });
+    set({ sync: markLocalChanges(get().sync) });
+    scheduleAutoSync(() => get().syncWithDrive(false));
   },
 
   createWorkspace: async (name, color) => {
     const workspace = await workspacesService.create(name, color);
     await get().load();
-    set({ sync: { ...get().sync, status: hasGoogleClientId() ? 'local' : get().sync.status } });
+    set({ sync: markLocalChanges(get().sync) });
+    scheduleAutoSync(() => get().syncWithDrive(false));
     return workspace;
   },
 
   updateWorkspace: async (id, updates) => {
     await workspacesService.update(id, updates);
     await get().load();
-    set({ sync: { ...get().sync, status: hasGoogleClientId() ? 'local' : get().sync.status } });
+    set({ sync: markLocalChanges(get().sync) });
+    scheduleAutoSync(() => get().syncWithDrive(false));
   },
 
   deleteWorkspace: async (id) => {
@@ -299,7 +323,8 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     await addTombstone(createDeleteTombstone({ entityType: 'workspace', id, workspaceId: id }, meta.deviceId));
     await workspacesService.delete(id);
     await get().load();
-    set({ sync: { ...get().sync, status: hasGoogleClientId() ? 'local' : get().sync.status } });
+    set({ sync: markLocalChanges(get().sync) });
+    scheduleAutoSync(() => get().syncWithDrive(false));
   },
 
   setActiveWorkspace: async (id) => {
@@ -325,7 +350,8 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     const merged = mergeImport(parsed, current);
     await adapter.set(merged);
     await get().load();
-    set({ sync: { ...get().sync, status: hasGoogleClientId() ? 'local' : get().sync.status } });
+    set({ sync: markLocalChanges(get().sync) });
+    scheduleAutoSync(() => get().syncWithDrive(false));
   },
 
   syncWithDrive: async (interactive = true) => {

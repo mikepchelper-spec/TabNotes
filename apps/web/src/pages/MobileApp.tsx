@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatRelativeTime, type Note, type NoteScope } from '@tabnotes/shared';
 import { useNotesStore } from '../store/notes';
 
@@ -19,7 +19,7 @@ function pillStyle(active: boolean): React.CSSProperties {
   return {
     border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-border)'}`,
     background: active ? 'var(--color-accent)' : 'var(--color-bg-card)',
-    color: active ? '#fff' : 'var(--color-text-muted)',
+    color: active ? 'var(--color-accent-ink)' : 'var(--color-text-muted)',
     borderRadius: 999,
     padding: '8px 12px',
     fontSize: 'var(--text-xs)',
@@ -68,10 +68,16 @@ export default function MobileAppPage() {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
+  const [draftDirty, setDraftDirty] = useState(false);
+  const draftRef = useRef({ title: '', content: '', tags: '', folder: '' });
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    draftRef.current = { title, content, tags, folder };
+  }, [title, content, tags, folder]);
 
   const folders = useMemo(() => getWorkspaceFolders(notes, workspaceId), [notes, workspaceId]);
   const selectedNote = selectedNoteId ? notes.find((note) => note.id === selectedNoteId) ?? null : null;
@@ -99,6 +105,7 @@ export default function MobileAppPage() {
     setTitle('');
     setContent('');
     setTags('');
+    setDraftDirty(false);
   }
 
   function selectNote(note: Note) {
@@ -107,32 +114,61 @@ export default function MobileAppPage() {
     setContent(note.content);
     setTags(note.tags.join(', '));
     setFolder(note.folder ?? '');
+    setDraftDirty(false);
   }
 
-  async function saveCurrentNote() {
+  const saveCurrentNote = useCallback(async (mode: 'manual' | 'auto' = 'manual') => {
     if (!content.trim() && !title.trim()) return;
+    if (mode === 'auto' && !selectedNote) return;
+
     setSaving(true);
-    const parsedTags = tags.split(',').map((tag) => tag.trim()).filter(Boolean);
-    if (selectedNote) {
-      await updateNote(selectedNote.id, {
-        title: title.trim() || undefined,
-        content,
-        tags: parsedTags,
-        folder: folder || undefined,
-      });
-    } else {
-      const scope: NoteScope = workspaceId ? 'workspace' : 'global';
-      const note = await createNote({
-        scope,
-        workspaceId,
-        title: title.trim() || undefined,
-        content,
-        tags: parsedTags,
-        folder: folder || undefined,
-      });
-      setSelectedNoteId(note.id);
+    const draft = { title, content, tags, folder };
+    try {
+      const parsedTags = draft.tags.split(',').map((tag) => tag.trim()).filter(Boolean);
+      if (selectedNote) {
+        await updateNote(selectedNote.id, {
+          title: draft.title.trim() || undefined,
+          content: draft.content,
+          tags: parsedTags,
+          folder: draft.folder || undefined,
+        });
+      } else {
+        const scope: NoteScope = workspaceId ? 'workspace' : 'global';
+        const note = await createNote({
+          scope,
+          workspaceId,
+          title: draft.title.trim() || undefined,
+          content: draft.content,
+          tags: parsedTags,
+          folder: draft.folder || undefined,
+        });
+        setSelectedNoteId(note.id);
+      }
+      const latest = draftRef.current;
+      if (
+        latest.title === draft.title &&
+        latest.content === draft.content &&
+        latest.tags === draft.tags &&
+        latest.folder === draft.folder
+      ) {
+        setDraftDirty(false);
+      }
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
+  }, [content, createNote, folder, selectedNote, tags, title, updateNote, workspaceId]);
+
+  useEffect(() => {
+    if (!selectedNote || !draftDirty || saving) return;
+    const timer = window.setTimeout(() => {
+      void saveCurrentNote('auto');
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [draftDirty, saveCurrentNote, saving, selectedNote]);
+
+  function updateDraft(setter: (value: string) => void, value: string) {
+    setter(value);
+    setDraftDirty(true);
   }
 
   async function removeSelectedNote() {
@@ -148,7 +184,7 @@ export default function MobileAppPage() {
       <section
         style={{
           border: '1px solid var(--color-border)',
-          borderRadius: 22,
+          borderRadius: 18,
           background: 'var(--color-bg-card)',
           boxShadow: 'var(--shadow-md)',
           padding: 'clamp(16px, 4vw, 26px)',
@@ -158,14 +194,14 @@ export default function MobileAppPage() {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
           <div>
-            <p style={{ color: 'var(--color-accent)', fontSize: 11, fontWeight: 800, letterSpacing: 0.4 }}>
-              TABNOTES MOBILE
+            <p style={{ color: 'var(--color-accent)', fontSize: 11, fontWeight: 800, letterSpacing: 0 }}>
+              TABNOTES WEB
             </p>
-            <h1 style={{ fontSize: 'clamp(28px, 8vw, 42px)', lineHeight: 1.02, marginTop: 6 }}>
-              Notes from your phone.
+            <h1 style={{ fontSize: 34, lineHeight: 1.06, marginTop: 6 }}>
+              Your TabNotes, everywhere.
             </h1>
             <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', marginTop: 8 }}>
-              Read, create, and sync notes with the same private Drive app data used by the extension.
+              Read, edit, and sync notes with the same private Drive app data used by the extension.
             </p>
           </div>
           <button
@@ -175,7 +211,7 @@ export default function MobileAppPage() {
               border: 'none',
               borderRadius: 999,
               background: 'var(--color-accent)',
-              color: '#fff',
+              color: 'var(--color-accent-ink)',
               padding: '10px 14px',
               fontWeight: 800,
               cursor: sync.status === 'syncing' ? 'wait' : 'pointer',
@@ -220,7 +256,7 @@ export default function MobileAppPage() {
           )}
           {sync.status === 'setup_required' && (
             <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)' }}>
-              Add VITE_GOOGLE_CLIENT_ID with a Google OAuth Web Application client ID before enabling Drive sync.
+              Add a Google OAuth Web Application client ID in the web runtime config before enabling Drive sync.
             </p>
           )}
         </div>
@@ -364,7 +400,7 @@ export default function MobileAppPage() {
 
           <label style={{ display: 'grid', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
             Existing category
-            <select value={folder} onChange={(event) => setFolder(event.target.value)} style={fieldStyle()}>
+            <select value={folder} onChange={(event) => updateDraft(setFolder, event.target.value)} style={fieldStyle()}>
               <option value="">No category</option>
               {folders.map((item) => (
                 <option key={item} value={item}>
@@ -376,40 +412,40 @@ export default function MobileAppPage() {
 
           <input
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => updateDraft(setTitle, event.target.value)}
             placeholder="Title"
             style={fieldStyle()}
           />
           <textarea
             value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder="Write a note from your phone"
+            onChange={(event) => updateDraft(setContent, event.target.value)}
+            placeholder="Write a note from the web app"
             style={{ ...fieldStyle(), minHeight: 220, resize: 'vertical', lineHeight: 1.6 }}
           />
           <input
             value={tags}
-            onChange={(event) => setTags(event.target.value)}
+            onChange={(event) => updateDraft(setTags, event.target.value)}
             placeholder="tags, separated, by comma"
             style={fieldStyle()}
           />
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button
-              onClick={saveCurrentNote}
+              onClick={() => void saveCurrentNote('manual')}
               disabled={saving || (!content.trim() && !title.trim())}
               style={{
                 flex: '1 1 160px',
                 border: 'none',
                 borderRadius: 12,
                 background: 'var(--color-accent)',
-                color: '#fff',
+                color: 'var(--color-accent-ink)',
                 padding: '12px 14px',
                 fontWeight: 800,
                 cursor: saving ? 'wait' : 'pointer',
                 opacity: saving || (!content.trim() && !title.trim()) ? 0.6 : 1,
               }}
             >
-              {saving ? 'Saving' : selectedNote ? 'Save note' : 'Add note'}
+              {saving ? 'Saving' : selectedNote ? (draftDirty ? 'Save changes' : 'Saved') : 'Add note'}
             </button>
             {selectedNote && (
               <button

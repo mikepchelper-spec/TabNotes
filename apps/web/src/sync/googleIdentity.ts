@@ -123,7 +123,7 @@ export async function hasConfiguredGoogleClientId(): Promise<boolean> {
 export async function requestGoogleDriveToken(interactive: boolean): Promise<string> {
   const clientId = await getConfiguredClientId();
   if (!clientId) {
-    throw new Error('Missing VITE_GOOGLE_CLIENT_ID for the TabNotes web app.');
+    throw new Error('Missing Google OAuth Web Application client ID for the TabNotes web app.');
   }
 
   await loadGoogleIdentityScript();

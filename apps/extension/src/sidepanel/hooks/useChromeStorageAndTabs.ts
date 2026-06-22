@@ -18,6 +18,7 @@ const cr: any =
     : null;
 
 const PENDING_CLIP_STORAGE_KEY = 'tn_pending_clip';
+const DRIVE_SYNC_REQUEST_MIN_MS = 60_000;
 
 interface PendingClip {
   text: string;
@@ -98,6 +99,7 @@ export function useChromeStorageAndTabs({
   const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
   const [syncedToast, setSyncedToast] = useState(false);
   const [clipFeedback, setClipFeedback] = useState(false);
+  const lastDriveSyncRequestRef = React.useRef(0);
 
   // Store setters
   const setView = useSidePanelStore((s) => s.setView);
@@ -118,6 +120,17 @@ export function useChromeStorageAndTabs({
   const setTitle = useSidePanelStore((s) => s.setTitle);
   const setTags = useSidePanelStore((s) => s.setTags);
   const setSaved = useSidePanelStore((s) => s.setSaved);
+
+  const requestDriveSyncIfEnabled = useCallback(() => {
+    if (!cr?.runtime?.sendMessage || !navigator.onLine) return;
+    const now = Date.now();
+    if (now - lastDriveSyncRequestRef.current < DRIVE_SYNC_REQUEST_MIN_MS) return;
+    lastDriveSyncRequestRef.current = now;
+    cr.runtime.sendMessage({ type: 'DRIVE_SYNC_IF_ENABLED' }, () => {
+      // Automatic remote pulls are best-effort; Settings exposes detailed Drive errors.
+      void cr.runtime.lastError;
+    });
+  }, []);
 
 
 
@@ -467,11 +480,26 @@ export function useChromeStorageAndTabs({
         }
 
         setLoading(false);
+        requestDriveSyncIfEnabled();
       });
     };
 
     init();
-  }, [adapter, wsSvc, setDefaultScopeState, setScope, scopeRef, setActiveWorkspaceId, wsIdRef, setWorkspaces, setMdState, setThemeState, setLanguageState, refreshAllNotes, setCurrentUrl, setCurrentDomain, currentUrlRef, loadContextNotes, appendClipToCurrentNote, addNoteToContextRef, setView, editorRef]);
+  }, [adapter, wsSvc, setDefaultScopeState, setScope, scopeRef, setActiveWorkspaceId, wsIdRef, setWorkspaces, setMdState, setThemeState, setLanguageState, refreshAllNotes, setCurrentUrl, setCurrentDomain, currentUrlRef, loadContextNotes, appendClipToCurrentNote, addNoteToContextRef, setView, editorRef, requestDriveSyncIfEnabled]);
+
+  useEffect(() => {
+    const onFocus = () => requestDriveSyncIfEnabled();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') requestDriveSyncIfEnabled();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [requestDriveSyncIfEnabled]);
 
   // Tab event listeners
   useEffect(() => {
