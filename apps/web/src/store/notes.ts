@@ -24,12 +24,14 @@ import {
   WebDriveApiError,
 } from '../sync/driveClient';
 import {
+  hasConfiguredGoogleClientId,
   hasGoogleClientId,
   requestGoogleDriveToken,
   revokeGoogleDriveToken,
 } from '../sync/googleIdentity';
 
 const SYNC_META_KEY = 'tabnotes_web_sync_meta';
+const MISSING_CLIENT_ID_ERROR = 'Missing VITE_GOOGLE_CLIENT_ID for the TabNotes web app.';
 
 type SyncStatus =
   | 'offline'
@@ -107,6 +109,16 @@ function syncErrorMessage(error: unknown): string {
   if (error instanceof WebDriveApiError) return `${error.status}: ${error.reason ?? error.message}`;
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+function resolveLoadedSyncStatus(sync: SyncState, configured: boolean): SyncStatus {
+  if (!configured) return 'setup_required';
+  return sync.status === 'setup_required' ? 'disconnected' : sync.status;
+}
+
+function resolveLoadedSyncError(sync: SyncState, configured: boolean): string | undefined {
+  if (configured && sync.lastError === MISSING_CLIENT_ID_ERROR) return undefined;
+  return sync.lastError;
 }
 
 async function getSyncMeta(): Promise<WebSyncMeta> {
@@ -204,12 +216,13 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
 
   load: async () => {
     set({ loading: true });
-    const [notes, workspaces, activeWorkspaceId, data, meta] = await Promise.all([
+    const [notes, workspaces, activeWorkspaceId, data, meta, driveConfigured] = await Promise.all([
       notesService.getAllNotes(),
       workspacesService.getAll(),
       workspacesService.getActive(),
       adapter.get(),
       getSyncMeta(),
+      hasConfiguredGoogleClientId(),
     ]);
     set({
       notes,
@@ -220,8 +233,9 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
       loading: false,
       sync: {
         ...get().sync,
-        configured: hasGoogleClientId(),
-        status: hasGoogleClientId() ? get().sync.status : 'setup_required',
+        configured: driveConfigured,
+        status: resolveLoadedSyncStatus(get().sync, driveConfigured),
+        lastError: resolveLoadedSyncError(get().sync, driveConfigured),
         lastSyncIso: meta.lastSyncIso,
         remoteModifiedTime: meta.remoteModifiedTime,
         pendingTombstones: meta.tombstones.length,
@@ -315,13 +329,13 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
   },
 
   syncWithDrive: async (interactive = true) => {
-    if (!hasGoogleClientId()) {
+    if (!(await hasConfiguredGoogleClientId())) {
       set({
         sync: {
           ...get().sync,
           configured: false,
           status: 'setup_required',
-          lastError: 'Missing VITE_GOOGLE_CLIENT_ID for the TabNotes web app.',
+          lastError: MISSING_CLIENT_ID_ERROR,
         },
       });
       return;

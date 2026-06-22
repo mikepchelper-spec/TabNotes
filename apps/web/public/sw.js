@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tabnotes-mobile-shell-v1';
+const CACHE_NAME = 'tabnotes-mobile-shell-v2';
 const scopeUrl = new URL(self.registration.scope);
 const shellUrl = (path = '') => new URL(path, scopeUrl).toString();
 const SHELL_URLS = [
@@ -29,6 +29,11 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.endsWith('/tabnotes.config.json')) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).catch(() => caches.match(shellUrl())));

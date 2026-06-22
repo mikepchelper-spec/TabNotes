@@ -32,12 +32,56 @@ declare global {
   }
 }
 
-let scriptPromise: Promise<void> | null = null;
+interface RuntimeConfig {
+  googleClientId?: unknown;
+  VITE_GOOGLE_CLIENT_ID?: unknown;
+}
 
-function getConfiguredClientId(): string | null {
+let scriptPromise: Promise<void> | null = null;
+let clientIdPromise: Promise<string | null> | null = null;
+let cachedClientId: string | null | undefined;
+
+function cleanClientId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed && !trimmed.includes('REPLACE_WITH') ? trimmed : null;
+}
+
+function getBuildTimeClientId(): string | null {
   const value = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-  const trimmed = value?.trim();
-  return trimmed || null;
+  return cleanClientId(value);
+}
+
+async function loadRuntimeClientId(): Promise<string | null> {
+  const configUrl = new URL('tabnotes.config.json', window.location.origin + import.meta.env.BASE_URL);
+  try {
+    const response = await fetch(configUrl, {
+      cache: 'no-store',
+      credentials: 'omit',
+    });
+    if (!response.ok) return null;
+    const config = (await response.json()) as RuntimeConfig;
+    return cleanClientId(config.googleClientId) ?? cleanClientId(config.VITE_GOOGLE_CLIENT_ID);
+  } catch {
+    return null;
+  }
+}
+
+async function getConfiguredClientId(): Promise<string | null> {
+  const buildTimeClientId = getBuildTimeClientId();
+  if (buildTimeClientId) {
+    cachedClientId = buildTimeClientId;
+    return buildTimeClientId;
+  }
+
+  if (cachedClientId !== undefined) return cachedClientId;
+  if (!clientIdPromise) {
+    clientIdPromise = loadRuntimeClientId().then((clientId) => {
+      cachedClientId = clientId;
+      return clientId;
+    });
+  }
+  return clientIdPromise;
 }
 
 function loadGoogleIdentityScript(): Promise<void> {
@@ -69,11 +113,15 @@ function loadGoogleIdentityScript(): Promise<void> {
 }
 
 export function hasGoogleClientId(): boolean {
-  return Boolean(getConfiguredClientId());
+  return Boolean(cachedClientId ?? getBuildTimeClientId());
+}
+
+export async function hasConfiguredGoogleClientId(): Promise<boolean> {
+  return Boolean(await getConfiguredClientId());
 }
 
 export async function requestGoogleDriveToken(interactive: boolean): Promise<string> {
-  const clientId = getConfiguredClientId();
+  const clientId = await getConfiguredClientId();
   if (!clientId) {
     throw new Error('Missing VITE_GOOGLE_CLIENT_ID for the TabNotes web app.');
   }
@@ -109,4 +157,3 @@ export function revokeGoogleDriveToken(token: string): Promise<void> {
   if (!oauth2) return Promise.resolve();
   return new Promise((resolve) => oauth2.revoke(token, resolve));
 }
-

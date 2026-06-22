@@ -41,6 +41,10 @@ await mkdir(output, { recursive: true });
 await cp(siteSource, output, { recursive: true });
 await mkdir(join(output, 'app'), { recursive: true });
 await cp(webDist, join(output, 'app'), { recursive: true });
+await writeFile(
+  join(output, 'app', 'tabnotes.config.json'),
+  `${JSON.stringify({ googleClientId: process.env.VITE_GOOGLE_CLIENT_ID ?? '' }, null, 2)}\n`,
+);
 await writeFile(join(output, '.nojekyll'), '');
 
 console.log(output);

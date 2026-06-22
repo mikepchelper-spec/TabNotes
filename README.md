@@ -64,6 +64,7 @@ It uses the same private Google Drive `appDataFolder` file as the extension, wit
 
 For Drive sync in the PWA, create a Google OAuth **Web application** client and set `VITE_GOOGLE_CLIENT_ID` before building or deploying the web app.
 For deployment under `https://tabnotes.atlaspcsupport.com/app/`, build with `VITE_BASE_PATH=/app/` and `VITE_TABNOTES_MOBILE_ENTRY=true`.
+The GitHub Pages build also writes `/app/tabnotes.config.json`, so the public web OAuth client ID can be updated without changing the application bundle.
 
 ## Screenshots
 
