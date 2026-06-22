@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tabnotes-mobile-shell-v2';
+const CACHE_NAME = 'tabnotes-web-shell-v3';
 const scopeUrl = new URL(self.registration.scope);
 const shellUrl = (path = '') => new URL(path, scopeUrl).toString();
 const SHELL_URLS = [
