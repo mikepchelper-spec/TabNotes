@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tabnotes-web-shell-v3';
+const CACHE_NAME = 'tabnotes-web-shell-v4';
 const scopeUrl = new URL(self.registration.scope);
 const shellUrl = (path = '') => new URL(path, scopeUrl).toString();
 const SHELL_URLS = [
@@ -11,7 +11,10 @@ const SHELL_URLS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(SHELL_URLS))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -19,8 +22,10 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      )
+      .then(() => self.clients.claim())
   );
 });
 
@@ -50,6 +55,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       });
-    }),
+    })
   );
 });
